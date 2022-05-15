@@ -2,10 +2,10 @@
 
 pragma solidity 0.7.6;
 
-import {ECDSA} from '@openzeppelin/contracts/cryptography/ECDSA.sol';
-import {Address} from '@openzeppelin/contracts/utils/Address.sol';
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
-import {IERC1271} from '../interfaces/IERC1271.sol';
+import { IERC1271 } from "../interfaces/IERC1271.sol";
 
 /**
  * @dev Signature verification helper: Provide a single mechanism to verify both private-key (EOA) ECDSA signature and
@@ -18,19 +18,19 @@ import {IERC1271} from '../interfaces/IERC1271.sol';
  */
 
 library SignatureChecker {
-    function isValidSignatureNow(
-        address signer,
-        bytes32 hash,
-        bytes memory signature
-    ) internal view returns (bool) {
-        if (Address.isContract(signer)) {
-            try IERC1271(signer).isValidSignature(hash, signature) returns (bytes4 magicValue) {
-                return magicValue == IERC1271(signer).isValidSignature.selector;
-            } catch {
-                return false;
-            }
-        } else {
-            return ECDSA.recover(hash, signature) == signer;
-        }
+  function isValidSignatureNow(
+    address signer,
+    bytes32 hash,
+    bytes memory signature
+  ) internal view returns (bool) {
+    if (Address.isContract(signer)) {
+      try IERC1271(signer).isValidSignature(hash, signature) returns (bytes4 magicValue) {
+        return magicValue == IERC1271(signer).isValidSignature.selector;
+      } catch {
+        return false;
+      }
+    } else {
+      return ECDSA.recover(hash, signature) == signer;
     }
+  }
 }
