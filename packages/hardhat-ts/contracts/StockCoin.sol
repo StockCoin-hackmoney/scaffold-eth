@@ -4,21 +4,26 @@ pragma solidity ^0.8.7;
 import "@chainlink/contracts/src/v0.8/ChainlinkClient.sol";
 import "@chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
 
+// import "./Babylon/interfaces/IStrategyFactory.sol";
+
 contract StockCoin is ChainlinkClient, ConfirmedOwner {
   using Chainlink for Chainlink.Request;
 
   uint256 public stockPrice;
-
   string _jobId;
-
   uint256 private constant ORACLE_PAYMENT = (1 * LINK_DIVISIBILITY) / 10;
-
   address _oracle;
+  address _gardenAddress;
 
-  constructor(address oracle, string memory jobId) ConfirmedOwner(msg.sender) {
+  constructor(
+    address oracle,
+    string memory jobId,
+    address gardenAddress
+  ) ConfirmedOwner(msg.sender) {
     setPublicChainlinkToken();
     _oracle = oracle;
     _jobId = jobId;
+    _gardenAddress = gardenAddress;
   }
 
   function requestPriceStock(string memory _base) public {
@@ -29,6 +34,10 @@ contract StockCoin is ChainlinkClient, ConfirmedOwner {
 
   function fullFillPriceStock(bytes32 _requestId, uint256 _data) public recordChainlinkFulfillment(_requestId) {
     stockPrice = _data;
+  }
+
+  function createProposal(string memory stockSymbol, uint256 stockAmount) public {
+    // IStrategyFactory.createStrategy(_name, _symbol, _strategist, _garden, _stratParams);
   }
 
   function cancelRequest(
