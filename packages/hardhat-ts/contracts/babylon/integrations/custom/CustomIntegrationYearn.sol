@@ -18,8 +18,7 @@ import { ControllerLib } from "../../lib/ControllerLib.sol";
  *
  * Example of how to use custom integration to connect with yearn
  */
-// abstract because we are not using one function  getPriceResultToken
-abstract contract CustomIntegrationYearn is CustomIntegration {
+contract CustomIntegrationYearn is CustomIntegration {
   using LowGasSafeMath for uint256;
   using PreciseUnitMath for uint256;
   using BytesLib for uint256;
@@ -139,7 +138,7 @@ abstract contract CustomIntegrationYearn is CustomIntegration {
     uint256[] calldata /* _minAmountsOut */
   )
     internal
-    pure
+    view
     override
     returns (
       address,
@@ -216,11 +215,11 @@ abstract contract CustomIntegrationYearn is CustomIntegration {
    * hparam  _tokenDenominator          Token we receive the capital in
    * @return uint256                    Amount of result tokens to receive
    */
-  // function getPriceResultToken(bytes calldata _data, address _tokenAddress) external view override returns (uint256) {
-  //     address vault = BytesLib.decodeOpDataAddress(_data);
-  //     // We get the price of the input token in the vault token
-  //     // Not needed in this case because Bbaylon already knows how to get the price of a vault token.
-  //     // Implemented to showcase how it would be done.
-  //     return _getPrice(IYearnVault(vault).token(), _tokenAddress);
-  // }
+  function getPriceResultToken(bytes calldata _data, address _tokenAddress) external view override returns (uint256) {
+    address vault = BytesLib.decodeOpDataAddress(_data);
+    // We get the price of the input token in the vault token
+    // Not needed in this case because Bbaylon already knows how to get the price of a vault token.
+    // Implemented to showcase how it would be done.
+    return _getPrice(IYearnVault(vault).token(), _tokenAddress);
+  }
 }
