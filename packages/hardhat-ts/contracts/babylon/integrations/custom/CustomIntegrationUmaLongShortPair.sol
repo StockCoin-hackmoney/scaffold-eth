@@ -49,17 +49,17 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
    * hparam  _data                     Data provided
    * @return bool                      True if the data is correct
    */
-  function _isValid(bytes memory _data) internal pure override returns (bool) {
+  function _isValid(bytes memory _data) internal view override returns (bool) {
     // Check if the UMA token is not expired
     return _isUmaTokenNotExpired(_data);
   }
 
-  function _isUmaTokenNotExpired(bytes memory _data) private pure returns (bool) {
+  function _isUmaTokenNotExpired(bytes memory _data) private view returns (bool) {
     ILongShortPair token = _getUmaTokenFromBytes(_data);
     return uint(token.contractState()) == 0;
   }
 
-  function _isUmaTokenExpiredPriceReceived(bytes memory _data) private pure returns (bool) {
+  function _isUmaTokenExpiredPriceReceived(bytes memory _data) private view returns (bool) {
     ILongShortPair token = _getUmaTokenFromBytes(_data);
     return uint(token.contractState()) == 2;
   }
@@ -117,7 +117,7 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
     uint256[] calldata _maxAmountsIn
   )
     internal
-    pure
+    view
     override
     returns (
       address,
@@ -158,7 +158,7 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
     uint256[] calldata /* _minAmountsOut */
   )
     internal
-    pure
+    view
     override
     returns (
       address,

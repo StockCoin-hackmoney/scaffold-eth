@@ -27,13 +27,13 @@ interface ILongShortPair {
 
   // State functions (check if this works)
 
-  function contractState() external returns (ContractState contractState);
+  function contractState() external view returns (ContractState _contractState);
 
-  function longToken() external returns (ExpandedIERC20 longToken);
+  function longToken() external view returns (ExpandedIERC20 _longToken);
 
-  function collateralToken() external returns (IERC20 collateralToken);
+  function collateralToken() external view returns (IERC20 _collateralToken);
 
-  function collateralPerPair() external returns (uint256 collateralPerPair);
+  function collateralPerPair() external view returns (uint256 _collateralPerPair);
 
   /****************************************
    *          POSITION FUNCTIONS          *
