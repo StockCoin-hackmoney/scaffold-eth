@@ -167,7 +167,7 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
     )
   {
     require(_isUmaTokenExpiredPriceReceived(_data), "Cannot exit before the token is expired and price has been received!");
-    ILongShortPair token = _getUmaTokenFromBytes(_data);
+    // ILongShortPair token = _getUmaTokenFromBytes(_data); // this is not needed we get the address from data
     bytes memory methodData = abi.encodeWithSelector(ILongShortPair.settle.selector, _resultTokensIn, _resultTokensIn);
     return (address(BytesLib.decodeOpDataAddressAssembly(_data, 12)), 0, methodData);
   }
@@ -245,4 +245,97 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
         /** FILL THIS */
         return 0;
     }
+
+    /**
+     * (OPTIONAL). Return pre action calldata
+     *
+     * hparam _strategy                  Address of the strategy
+     * hparam  _asset                    Address param
+     * hparam  _amount                   Amount
+     * hparam  _customOp                 Type of Custom op
+     *
+     * @return address                   Target contract address
+     * @return uint256                   Call value
+     * @return bytes                     Trade calldata
+     */
+    function _getPreActionCallData(
+        address, /* _strategy */
+        address, /* _asset */
+        uint256, /* _amount */
+        uint256 /* _customOp */
+    )
+        internal
+        view
+        override
+        returns (
+            address,
+            uint256,
+            bytes memory
+        )
+    {
+        return (address(0), 0, bytes(''));
+    }
+
+    /**
+     * (OPTIONAL) Return post action calldata
+     *
+     * hparam  _strategy                 Address of the strategy
+     * hparam  _asset                    Address param
+     * hparam  _amount                   Amount
+     * hparam  _customOp                 Type of op
+     *
+     * @return address                   Target contract address
+     * @return uint256                   Call value
+     * @return bytes                     Trade calldata
+     */
+    function _getPostActionCallData(
+        address, /* _strategy */
+        address, /* _asset */
+        uint256, /* _amount */
+        uint256 /* _customOp */
+    )
+        internal
+        view
+        override
+        returns (
+            address,
+            uint256,
+            bytes memory
+        )
+    {
+        return (address(0), 0, bytes(''));
+    }
+
+    /**
+     * (OPTIONAL). Whether or not the pre action needs an approval.
+     * Only makes sense if _getPreActionCallData is filled.
+     *
+     * hparam  _asset                     Asset passed as param
+     * hparam  _tokenDenominator          0 for enter, 1 for exit
+     * @return address                    Address of the asset to approve
+     * @return address                    Address to approve
+     */
+    function _preActionNeedsApproval(
+        address, /* _asset */
+        uint8 /* _customOp */
+    ) internal view override returns (address, address) {
+        return (address(0), address(0));
+    }
+
+    /**
+     * (OPTIONAL). Whether or not the post action needs an approval
+     * Only makes sense if _getPostActionCallData is filled.
+     *
+     * hparam  _asset                     Asset passed as param
+     * hparam  _tokenDenominator          0 for enter, 1 for exit
+     * @return address                    Address of the asset to approve
+     * @return address                    Address to approve
+     */
+    function _postActionNeedsApproval(
+        address, /* _asset */
+        uint8 /* _customOp */
+    ) internal view override returns (address, address) {
+        return (address(0), address(0));
+    }
+  
 }

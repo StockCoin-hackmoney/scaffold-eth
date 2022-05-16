@@ -44,21 +44,18 @@ console.log('HARDHAT_TARGET_NETWORK: ', process.env.HARDHAT_TARGET_NETWORK);
  * loads network list and config from '@scaffold-eth/common/src
  */
 const networks = {
-  ...getNetworks({
-    accounts: {
-      mnemonic: getMnemonic(),
+  hardhat: {
+    chainId: 31337,
+    blockGasLimit: 0x1fffffffffffff,
+    allowUnlimitedContractSize: true,
+    saveDeployments: false,
+    gas: 15e6,
+    initialBaseFeePerGas: 0,
+    forking: {
+      url: `https://eth-mainnet.alchemyapi.io/v2/cC7JrQPWsv2ESN7L5UcIgiKM6x0-PAcF`,
+      blockNumber: 14786440,
     },
-  }),
-  localhost: {
-    url: 'http://localhost:8545',
-    /*
-      if there is no mnemonic, it will just use account 0 of the hardhat node to deploy
-      (you can put in a mnemonic here to set the deployer locally)
-    */
-    // accounts: {
-    //   mnemonic: getMnemonic(),
-    // },
-  },
+  }
 };
 
 /**
