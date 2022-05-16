@@ -9,7 +9,8 @@ import { PreciseUnitMath } from "../../lib/PreciseUnitMath.sol";
 import { LowGasSafeMath } from "../../lib/LowGasSafeMath.sol";
 import { BytesLib } from "../../lib/BytesLib.sol";
 import { ControllerLib } from "../../lib/ControllerLib.sol";
-import { LongShortPair } from "@uma/core/contracts/financial-templates/long-short-pair/LongShortPair.sol";
+
+import {ILongShortPair} from  "../../../interface-uma/ILongShortPair.sol";
 
 /**
  * @title CustomIntegrationSample
@@ -27,6 +28,8 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
 
   /* Add State variables here if any. Pass to the constructor */
 
+
+
   /* ============ Constructor ============ */
 
   /**
@@ -34,7 +37,7 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
    *
    * @param _controller                   Address of the controller
    */
-  constructor(IBabController _controller) CustomIntegration("custom_uma_longshortpair_sample", _controller) {
+  constructor(IBabController _controller) CustomIntegration("custom_uma_longshortpair_sample", _controller)  {
     require(address(_controller) != address(0), "invalid address");
   }
 
@@ -52,18 +55,18 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
   }
 
   function _isUmaTokenNotExpired(bytes memory _data) private pure returns (bool) {
-    LongShortPair token = _getUmaTokenFromBytes(_data);
-    return token.contractState == 0;
+    ILongShortPair token = _getUmaTokenFromBytes(_data);
+    return uint(token.contractState()) == 0;
   }
 
   function _isUmaTokenExpiredPriceReceived(bytes memory _data) private pure returns (bool) {
-    LongShortPair token = _getUmaTokenFromBytes(_data);
-    return token.contractState == 2;
+    ILongShortPair token = _getUmaTokenFromBytes(_data);
+    return uint(token.contractState()) == 2;
   }
 
-  function _getUmaTokenFromBytes(bytes memory _data) private pure returns (LongShortPair) {
+  function _getUmaTokenFromBytes(bytes memory _data) private pure returns (ILongShortPair) {
     address umaToken = address(BytesLib.decodeOpDataAddressAssembly(_data, 12));
-    LongShortPair token = LongShortPair(umaToken);
+    ILongShortPair token = ILongShortPair(umaToken);
     return token;
   }
 
@@ -89,8 +92,8 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
    */
   function _getResultToken(address _token) internal pure override returns (address) {
     // TODO find out how we can return long and short tokens here!
-    LongShortPair token = LongShortPair(_token);
-    return token.longToken;
+    ILongShortPair token = ILongShortPair(_token);
+    return token.longToken.address;
   }
 
   /**
@@ -124,12 +127,12 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
   {
     require(_isUmaTokenNotExpired(_data), "Cannot send tokens to expired UMA token!");
     address umaToken = address(BytesLib.decodeOpDataAddressAssembly(_data, 12));
-    LongShortPair token = LongShortPair(umaToken);
+    ILongShortPair token = ILongShortPair(umaToken);
 
-    require(tokensIn.length == 1 && _maxAmountsIn.length == 1, "Wrong amount of tokens provided");
-    require(tokensIn[0] == token.collateralToken, "Wrong token selected to send as collateral!");
-    uint256 amountTokensToCreate = _maxAmountsIn[0] / token.collateralPerPair;
-    bytes memory methodData = abi.encodeWithSelector(LongShortPair.create.selector, amountTokensToCreate);
+    require(_tokensIn.length == 1 && _maxAmountsIn.length == 1, "Wrong amount of tokens provided");
+    require(_tokensIn[0] == token.collateralToken.address, "Wrong token selected to send as collateral!");
+    uint256 amountTokensToCreate = _maxAmountsIn[0] / token.collateralPerPair();
+    bytes memory methodData = abi.encodeWithSelector(ILongShortPair.create.selector, amountTokensToCreate);
 
     return (umaToken, 0, methodData);
   }
@@ -164,9 +167,9 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
     )
   {
     require(_isUmaTokenExpiredPriceReceived(_data), "Cannot exit before the token is expired and price has been received!");
-    LongShortPair token = _getUmaTokenFromBytes(_data);
-    bytes memory methodData = abi.encodeWithSelector(LongShortPair.settle.selector, _resultTokensIn, _resultTokensIn);
-    return (token.address, 0, methodData);
+    ILongShortPair token = _getUmaTokenFromBytes(_data);
+    bytes memory methodData = abi.encodeWithSelector(ILongShortPair.settle.selector, _resultTokensIn, _resultTokensIn);
+    return (address(BytesLib.decodeOpDataAddressAssembly(_data, 12)), 0, methodData);
   }
 
   /**
@@ -194,10 +197,10 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
    */
   function getInputTokensAndWeights(bytes calldata _data) external pure override returns (address[] memory _inputTokens, uint256[] memory _inputWeights) {
     address umaToken = address(BytesLib.decodeOpDataAddressAssembly(_data, 12));
-    LongShortPair token = LongShortPair(umaToken);
-    inputTokens[0] = token.collateralToken;
-    inputWeights[0] = 1e18; // 100%
-    return (inputTokens, inputWeights);
+    ILongShortPair token = ILongShortPair(umaToken);
+    _inputTokens[0] = token.collateralToken.address;
+    _inputWeights[0] = 1e18; // 100%
+    return (_inputTokens, _inputWeights);
   }
 
   /**
@@ -213,8 +216,8 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
     uint256 /* _liquidity */
   ) external pure override returns (address[] memory exitTokens, uint256[] memory _minAmountsOut) {
     address umaToken = address(BytesLib.decodeOpDataAddressAssembly(_data, 12));
-    LongShortPair token = LongShortPair(umaToken);
-    exitTokens[0] = token.collateralToken;
+    ILongShortPair token = ILongShortPair(umaToken);
+    exitTokens[0] = token.collateralToken.address;
     _minAmountsOut[0] = 0;
     return (exitTokens, _minAmountsOut);
   }
@@ -234,4 +237,12 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
   //   require(_tokenDenominator == token.collateralToken, "Cannot give price in other denominator than in collateral token!");
   //   return token.collateralPerPair;
   // }
+
+  function getPriceResultToken(
+        bytes calldata, /* _data */
+        address /* _tokenDenominator */
+    ) external pure override returns (uint256) {
+        /** FILL THIS */
+        return 0;
+    }
 }
