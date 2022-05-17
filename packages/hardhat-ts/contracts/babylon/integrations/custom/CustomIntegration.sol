@@ -17,6 +17,8 @@ import { BytesLib } from "../../lib/BytesLib.sol";
 
 import { BaseIntegration } from "../BaseIntegration.sol";
 
+import "hardhat/console.sol";
+
 /**
  * @title CustomIntegration
  * @author Babylon Finance Protocol
@@ -78,6 +80,7 @@ abstract contract CustomIntegration is BaseIntegration, ReentrancyGuard, ICustom
     address[] calldata _tokensIn,
     uint256[] calldata _maxAmountsIn
   ) external override nonReentrant onlySystemContract {
+    console.log("_resultTokensOut", _resultTokensOut);
     CustomInfo memory customInfo = _createCustomInfo(_strategy, _data, _resultTokensOut);
     _validatePreJoinCustomData(customInfo);
 
@@ -229,12 +232,18 @@ abstract contract CustomIntegration is BaseIntegration, ReentrancyGuard, ICustom
     uint256 _resultTokensInTransaction
   ) internal view returns (CustomInfo memory) {
     address add = BytesLib.decodeOpDataAddress(_data);
+    console.log("add", add);
     CustomInfo memory customInfo;
     customInfo.resultToken = _getResultToken(add);
     customInfo.addressParam = add;
     customInfo.data = _data;
     customInfo.strategy = IStrategy(_strategy);
+
+    console.log("_strategy", _strategy);
+    console.log("resultToken", customInfo.resultToken);
     customInfo.garden = IGarden(customInfo.strategy.garden());
+    // console.log
+    // console.log("TEST", IERC20(customInfo.resultToken).balanceOf(_strategy));
     customInfo.resultTokensInStrategy = IERC20(customInfo.resultToken).balanceOf(_strategy);
     customInfo.resultTokensInTransaction = _resultTokensInTransaction;
     return customInfo;
