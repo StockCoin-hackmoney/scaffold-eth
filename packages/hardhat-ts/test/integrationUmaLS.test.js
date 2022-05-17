@@ -76,6 +76,12 @@ describe('Babylon integrations', function () {
 
 
 
+        const longShortPair = await ethers.getContractAt("ILongShortPair", "0x94E653AF059550657e839a5DFCCA5a17fD17EFdf");
+
+
+        const collateralToken = await longShortPair.collateralToken();
+
+
 
 
 
