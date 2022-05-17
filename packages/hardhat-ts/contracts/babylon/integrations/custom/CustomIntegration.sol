@@ -106,6 +106,10 @@ abstract contract CustomIntegration is BaseIntegration, ReentrancyGuard, ICustom
       }
     }
     (address target, uint256 callValue, bytes memory methodData) = _getEnterCalldata(_strategy, _data, _resultTokensOut, _tokensIn, _maxAmountsIn);
+
+    console.log("target", target);
+    console.log("callValue", callValue);
+    // console.log("methodData", methodData);
     customInfo.strategy.invokeFromIntegration(target, callValue, methodData);
     customInfo.resultTokensInTransaction = IERC20(customInfo.resultToken).balanceOf(address(customInfo.strategy)).sub(customInfo.resultTokensInStrategy);
 
@@ -276,6 +280,7 @@ abstract contract CustomIntegration is BaseIntegration, ReentrancyGuard, ICustom
    * @param _customInfo               Struct containing custom information used in internal functions
    */
   function _validatePostJoinCustomData(CustomInfo memory _customInfo) internal view {
+    console.log(IERC20(_customInfo.resultToken).balanceOf(address(_customInfo.strategy)), _customInfo.resultTokensInStrategy);
     require(
       (IERC20(_customInfo.resultToken).balanceOf(address(_customInfo.strategy)) > _customInfo.resultTokensInStrategy),
       "The strategy did not receive the result tokens"

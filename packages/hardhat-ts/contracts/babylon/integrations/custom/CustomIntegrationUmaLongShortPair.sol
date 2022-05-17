@@ -10,7 +10,7 @@ import { LowGasSafeMath } from "../../lib/LowGasSafeMath.sol";
 import { BytesLib } from "../../lib/BytesLib.sol";
 import { ControllerLib } from "../../lib/ControllerLib.sol";
 
-import {ILongShortPair} from  "../../../interface-uma/ILongShortPair.sol";
+import { ILongShortPair } from "../../../interface-uma/ILongShortPair.sol";
 
 import "hardhat/console.sol";
 
@@ -30,8 +30,6 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
 
   /* Add State variables here if any. Pass to the constructor */
 
-
-
   /* ============ Constructor ============ */
 
   /**
@@ -39,7 +37,7 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
    *
    * @param _controller                   Address of the controller
    */
-  constructor(IBabController _controller) CustomIntegration("custom_uma_longshortpair_sample", _controller)  {
+  constructor(IBabController _controller) CustomIntegration("custom_uma_longshortpair_sample", _controller) {
     require(address(_controller) != address(0), "invalid address");
   }
 
@@ -53,19 +51,19 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
    */
   function _isValid(bytes memory _data) internal view override returns (bool) {
     // Check if the UMA token is not expired
-    
+
     return _isUmaTokenNotExpired(_data);
   }
 
   function _isUmaTokenNotExpired(bytes memory _data) private view returns (bool) {
     ILongShortPair token = _getUmaTokenFromBytes(_data);
-    console.log("contractState", uint(token.contractState()));
-    return uint(token.contractState()) == 0;
+    console.log("contractState", uint256(token.contractState()));
+    return uint256(token.contractState()) == 0;
   }
 
   function _isUmaTokenExpiredPriceReceived(bytes memory _data) private view returns (bool) {
     ILongShortPair token = _getUmaTokenFromBytes(_data);
-    return uint(token.contractState()) == 2;
+    return uint256(token.contractState()) == 2;
   }
 
   function _getUmaTokenFromBytes(bytes memory _data) private pure returns (ILongShortPair) {
@@ -99,6 +97,7 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
     ILongShortPair token = ILongShortPair(_token);
     return address(token.longToken());
   }
+
   /**
    * Return enter custom calldata
    *
@@ -128,21 +127,26 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
       bytes memory
     )
   {
+    console.log(_tokensIn[0]);
+    console.log(_maxAmountsIn[0]);
     require(_isUmaTokenNotExpired(_data), "Cannot send tokens to expired UMA token!");
     address umaToken = address(BytesLib.decodeOpDataAddressAssembly(_data, 12));
     ILongShortPair token = ILongShortPair(umaToken);
 
-    address longToken = address(token.longToken());
-
+    // address longToken = address(token.longToken());
 
     require(_tokensIn.length == 1 && _maxAmountsIn.length == 1, "Wrong amount of tokens provided");
-    // check how to send the correct collateral in test 
+    // check how to send the correct collateral in test
     console.log("collateralToken", address(token.collateralToken()));
+
+    console.log("collateralPair", token.collateralPerPair());
     require(_tokensIn[0] == address(token.collateralToken()), "Wrong token selected to send as collateral!");
-    uint256 amountTokensToCreate = _maxAmountsIn[0] / token.collateralPerPair();
+    uint256 amountTokensToCreate = ((_maxAmountsIn[0]) * 10**12) / token.collateralPerPair();
+    console.log("amountTokensToCreate", amountTokensToCreate);
+    require(amountTokensToCreate > 0, "not enough tokens supplied!");
     bytes memory methodData = abi.encodeWithSelector(ILongShortPair.create.selector, amountTokensToCreate);
 
-    return (longToken, 0, methodData);
+    return (umaToken, 0, methodData);
   }
 
   /**
@@ -227,12 +231,14 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
   function getOutputTokensAndMinAmountOut(
     bytes calldata _data,
     uint256 /* _liquidity */
-  ) external pure override returns (address[] memory exitTokens, uint256[] memory _minAmountsOut) {
+  ) external view override returns (address[] memory exitTokens, uint256[] memory _minAmountsOut) {
     address umaToken = address(BytesLib.decodeOpDataAddressAssembly(_data, 12));
     ILongShortPair token = ILongShortPair(umaToken);
-    exitTokens[0] = token.collateralToken.address;
-    _minAmountsOut[0] = 0;
-    return (exitTokens, _minAmountsOut);
+    address[] memory exitTokens = new address[](1);
+    exitTokens[0] = address(token.collateralToken());
+    uint256[] memory minAmountsOut = new uint256[](1);
+    minAmountsOut[0] = 0;
+    return (exitTokens, minAmountsOut);
   }
 
   /**
@@ -252,103 +258,102 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
   // }
 
   function getPriceResultToken(
-        bytes calldata, /* _data */
-        address /* _tokenDenominator */
-    ) external pure override returns (uint256) {
-        /** FILL THIS */
-        return 0;
-    }
+    bytes calldata, /* _data */
+    address /* _tokenDenominator */
+  ) external pure override returns (uint256) {
+    /** FILL THIS */
+    return 0;
+  }
 
-    /**
-     * (OPTIONAL). Return pre action calldata
-     *
-     * hparam _strategy                  Address of the strategy
-     * hparam  _asset                    Address param
-     * hparam  _amount                   Amount
-     * hparam  _customOp                 Type of Custom op
-     *
-     * @return address                   Target contract address
-     * @return uint256                   Call value
-     * @return bytes                     Trade calldata
-     */
-    function _getPreActionCallData(
-        address, /* _strategy */
-        address, /* _asset */
-        uint256, /* _amount */
-        uint256 /* _customOp */
+  /**
+   * (OPTIONAL). Return pre action calldata
+   *
+   * hparam _strategy                  Address of the strategy
+   * hparam  _asset                    Address param
+   * hparam  _amount                   Amount
+   * hparam  _customOp                 Type of Custom op
+   *
+   * @return address                   Target contract address
+   * @return uint256                   Call value
+   * @return bytes                     Trade calldata
+   */
+  function _getPreActionCallData(
+    address, /* _strategy */
+    address, /* _asset */
+    uint256, /* _amount */
+    uint256 /* _customOp */
+  )
+    internal
+    view
+    override
+    returns (
+      address,
+      uint256,
+      bytes memory
     )
-        internal
-        view
-        override
-        returns (
-            address,
-            uint256,
-            bytes memory
-        )
-    {
-        return (address(0), 0, bytes(''));
-    }
+  {
+    return (address(0), 0, bytes(""));
+  }
 
-    /**
-     * (OPTIONAL) Return post action calldata
-     *
-     * hparam  _strategy                 Address of the strategy
-     * hparam  _asset                    Address param
-     * hparam  _amount                   Amount
-     * hparam  _customOp                 Type of op
-     *
-     * @return address                   Target contract address
-     * @return uint256                   Call value
-     * @return bytes                     Trade calldata
-     */
-    function _getPostActionCallData(
-        address, /* _strategy */
-        address, /* _asset */
-        uint256, /* _amount */
-        uint256 /* _customOp */
+  /**
+   * (OPTIONAL) Return post action calldata
+   *
+   * hparam  _strategy                 Address of the strategy
+   * hparam  _asset                    Address param
+   * hparam  _amount                   Amount
+   * hparam  _customOp                 Type of op
+   *
+   * @return address                   Target contract address
+   * @return uint256                   Call value
+   * @return bytes                     Trade calldata
+   */
+  function _getPostActionCallData(
+    address, /* _strategy */
+    address, /* _asset */
+    uint256, /* _amount */
+    uint256 /* _customOp */
+  )
+    internal
+    view
+    override
+    returns (
+      address,
+      uint256,
+      bytes memory
     )
-        internal
-        view
-        override
-        returns (
-            address,
-            uint256,
-            bytes memory
-        )
-    {
-        return (address(0), 0, bytes(''));
-    }
+  {
+    return (address(0), 0, bytes(""));
+  }
 
-    /**
-     * (OPTIONAL). Whether or not the pre action needs an approval.
-     * Only makes sense if _getPreActionCallData is filled.
-     *
-     * hparam  _asset                     Asset passed as param
-     * hparam  _tokenDenominator          0 for enter, 1 for exit
-     * @return address                    Address of the asset to approve
-     * @return address                    Address to approve
-     */
-    function _preActionNeedsApproval(
-        address, /* _asset */
-        uint8 /* _customOp */
-    ) internal view override returns (address, address) {
-        return (address(0), address(0));
-    }
+  /**
+   * (OPTIONAL). Whether or not the pre action needs an approval.
+   * Only makes sense if _getPreActionCallData is filled.
+   *
+   * hparam  _asset                     Asset passed as param
+   * hparam  _tokenDenominator          0 for enter, 1 for exit
+   * @return address                    Address of the asset to approve
+   * @return address                    Address to approve
+   */
+  function _preActionNeedsApproval(
+    address, /* _asset */
+    uint8 /* _customOp */
+  ) internal view override returns (address, address) {
+    return (address(0), address(0));
+  }
 
-    /**
-     * (OPTIONAL). Whether or not the post action needs an approval
-     * Only makes sense if _getPostActionCallData is filled.
-     *
-     * hparam  _asset                     Asset passed as param
-     * hparam  _tokenDenominator          0 for enter, 1 for exit
-     * @return address                    Address of the asset to approve
-     * @return address                    Address to approve
-     */
-    function _postActionNeedsApproval(
-        address, /* _asset */
-        uint8 /* _customOp */
-    ) internal view override returns (address, address) {
-        return (address(0), address(0));
-    }
-  
+  /**
+   * (OPTIONAL). Whether or not the post action needs an approval
+   * Only makes sense if _getPostActionCallData is filled.
+   *
+   * hparam  _asset                     Asset passed as param
+   * hparam  _tokenDenominator          0 for enter, 1 for exit
+   * @return address                    Address of the asset to approve
+   * @return address                    Address to approve
+   */
+  function _postActionNeedsApproval(
+    address, /* _asset */
+    uint8 /* _customOp */
+  ) internal view override returns (address, address) {
+    return (address(0), address(0));
+  }
 }

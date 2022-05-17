@@ -76,10 +76,6 @@ describe('Babylon integrations', function () {
 
 
 
-        const longShortPair = await ethers.getContractAt("ILongShortPair", "0x94E653AF059550657e839a5DFCCA5a17fD17EFdf");
-
-
-        const collateralToken = await longShortPair.collateralToken();
 
 
 
@@ -106,7 +102,7 @@ describe('Babylon integrations', function () {
             [customIntegration.address], // _opIntegrations
             new ethers.utils.AbiCoder().encode(
                 ['address', 'uint256'],
-                // Long token address? 
+                // long shor pair
                 ['0x94E653AF059550657e839a5DFCCA5a17fD17EFdf', 0] // integration params. We pass USDT vault
             ), // _opEncodedDatas
         );
@@ -138,5 +134,26 @@ describe('Babylon integrations', function () {
         // Finalize strategy
         await increaseTime(ONE_DAY_IN_SECONDS * 30);
         await customStrategy.connect(keeper).finalizeStrategy(0, '', 0);
+    });
+    it.skip('send usdc get long token', async () => {
+
+        const USDC = await ethers.getContractAt("IERC20", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
+
+        const usdcholder = await impersonateAddress("0x47ac0fb4f2d84898e4d9e7b4dab3c24507a6d503");
+
+
+
+        const longShortPair = await ethers.getContractAt("ILongShortPair", "0x94E653AF059550657e839a5DFCCA5a17fD17EFdf");
+
+        await USDC.connect(usdcholder).approve(longShortPair.address, eth(4000));
+
+        await longShortPair.connect(usdcholder).create(100);
+
+        const longToken = await ethers.getContractAt("IERC20", "0x285e6252e2649a4dbf1244c504e0e86c92b745e7");
+
+        const amount = await longToken.balanceOf(usdcholder.address);
+
+
+        console.log(amount);
     });
 });

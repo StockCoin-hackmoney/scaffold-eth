@@ -12,6 +12,8 @@ import { LowGasSafeMath } from "../../lib/LowGasSafeMath.sol";
 import { BytesLib } from "../../lib/BytesLib.sol";
 import { ControllerLib } from "../../lib/ControllerLib.sol";
 
+import "hardhat/console.sol";
+
 /**
  * @title CustomIntegrationYearn
  * @author Babylon Finance Protocol
@@ -109,6 +111,7 @@ contract CustomIntegrationYearn is CustomIntegration {
       bytes memory
     )
   {
+    console.log("_maxAmountsInYearn", _maxAmountsIn[0]);
     address vault = BytesLib.decodeOpDataAddress(_data);
     require(tokensIn.length == 1 && _maxAmountsIn.length == 1, "Wrong amount of tokens provided");
     require(yearnVaultRegistry.vaults(vault), "Yearn vault is not valid");

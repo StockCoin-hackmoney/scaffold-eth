@@ -79,7 +79,7 @@ describe.skip('Babylon integrations', function () {
       from: alice.address,
       args: [controller.address, '0x61c733fE0Eb89b75440A21cD658C4011ec512EB8'],
     });
-    console.log('customIntegration', customIntegration);
+    // console.log('customIntegration', customIntegration);
 
     await garden.connect(alice).addStrategy(
       'Execute my custom integration',
