@@ -11,6 +11,7 @@ import { BytesLib } from "../../lib/BytesLib.sol";
 import { ControllerLib } from "../../lib/ControllerLib.sol";
 
 import { ILongShortPair } from "../../../interface-uma/ILongShortPair.sol";
+import { ExpandedIERC20 } from "../../../interface-uma/ExpandedIERC20.sol";
 
 import "hardhat/console.sol";
 
@@ -308,10 +309,10 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
    * @return bytes                     Trade calldata
    */
   function _getPostActionCallData(
-    address, /* _strategy */
-    address, /* _asset */
+    address _strategy,
+    address _asset,
     uint256, /* _amount */
-    uint256 /* _customOp */
+    uint256 _customOp
   )
     internal
     view
@@ -322,7 +323,17 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
       bytes memory
     )
   {
-    return (address(0), 0, bytes(""));
+    // only execute the action after entering the strategy
+    if (_customOp != 0) {
+      return (address(0), 0, bytes(""));
+    }
+
+    // TODO find out how to sell the short token. for now, just burn it
+    ILongShortPair token = ILongShortPair(_asset);
+    ExpandedIERC20 shortToken = ExpandedIERC20(token.shortToken());
+    uint256 myBalance = shortToken.balanceOf(_strategy);
+    bytes memory selector = abi.encodeWithSelector(IERC20.transfer.selector, address(1), myBalance);
+    return (address(shortToken), 0, selector);
   }
 
   /**

@@ -33,6 +33,8 @@ interface ILongShortPair {
 
   function longToken() external view returns (ExpandedIERC20 _longToken);
 
+  function shortToken() external view returns (ExpandedIERC20 _shortToken);
+
   function collateralToken() external view returns (IERC20 _collateralToken);
 
   function collateralPerPair() external view returns (uint256 _collateralPerPair);
