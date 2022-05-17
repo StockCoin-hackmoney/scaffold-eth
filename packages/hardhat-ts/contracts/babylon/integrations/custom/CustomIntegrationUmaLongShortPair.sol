@@ -4,6 +4,7 @@ pragma solidity 0.7.6;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IBabController } from "../../interfaces/IBabController.sol";
+import { IStrategy } from "../../interfaces/IStrategy.sol";
 import { CustomIntegration } from "./CustomIntegration.sol";
 import { PreciseUnitMath } from "../../lib/PreciseUnitMath.sol";
 import { LowGasSafeMath } from "../../lib/LowGasSafeMath.sol";
@@ -12,6 +13,8 @@ import { ControllerLib } from "../../lib/ControllerLib.sol";
 
 import { ILongShortPair } from "../../../interface-uma/ILongShortPair.sol";
 import { ExpandedIERC20 } from "../../../interface-uma/ExpandedIERC20.sol";
+
+import { IUniswapV2Router } from "../../interfaces/external/uniswap/IUniswapV2Router.sol";
 
 import "hardhat/console.sol";
 
@@ -142,7 +145,7 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
 
     console.log("collateralPair", token.collateralPerPair());
     require(_tokensIn[0] == address(token.collateralToken()), "Wrong token selected to send as collateral!");
-    uint256 amountTokensToCreate = ((_maxAmountsIn[0]) * 10**12) / token.collateralPerPair();
+    uint256 amountTokensToCreate = ((_maxAmountsIn[0]) * 10**18) / token.collateralPerPair();
     console.log("amountTokensToCreate", amountTokensToCreate);
     require(amountTokensToCreate > 0, "not enough tokens supplied!");
     bytes memory methodData = abi.encodeWithSelector(ILongShortPair.create.selector, amountTokensToCreate);
@@ -332,8 +335,32 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
     ILongShortPair token = ILongShortPair(_asset);
     ExpandedIERC20 shortToken = ExpandedIERC20(token.shortToken());
     uint256 myBalance = shortToken.balanceOf(_strategy);
-    bytes memory selector = abi.encodeWithSelector(IERC20.transfer.selector, address(1), myBalance);
+    address collateralToken = address(token.collateralToken());
+
+    // trading the short token
+
+    // bytes memory selector = abi.encodeWithSelector(
+    //   IUniswapV2Router.swapExactTokensForTokens.selector,
+    //   myBalance,
+    //   0,
+    //   [address(shortToken), collateralToken],
+    //   0xED0262718A77e09C3C8F48696791747E878a5551,
+    //   block.timestamp
+    // );
+
+    // Just sending to random address
+
+    bytes memory selector = abi.encodeWithSelector(IERC20.transfer.selector, address(0xED0262718A77e09C3C8F48696791747E878a5551), myBalance);
+
     return (address(shortToken), 0, selector);
+    // 0x7a250d5630b4cf539739df2c5dacb4c659f2488d
+
+    // IUniswapV2Router uniswapRouter = IUniswapV2Router(0x7a250d5630b4cf539739df2c5dacb4c659f2488d);
+
+    // uniswapRouter.swapExactTokensForTokens()
+
+    // address uniswapShortTokenAddress = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    // return (uniswapShortTokenAddress, 0, selector);
   }
 
   /**
@@ -362,9 +389,13 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
    * @return address                    Address to approve
    */
   function _postActionNeedsApproval(
-    address, /* _asset */
+    address _asset,
     uint8 /* _customOp */
   ) internal view override returns (address, address) {
-    return (address(0), address(0));
+    ILongShortPair token = ILongShortPair(_asset);
+    ExpandedIERC20 shortToken = ExpandedIERC20(token.shortToken());
+
+    address uniswapShortTokenAddress = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    return (address(shortToken), 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
   }
 }
