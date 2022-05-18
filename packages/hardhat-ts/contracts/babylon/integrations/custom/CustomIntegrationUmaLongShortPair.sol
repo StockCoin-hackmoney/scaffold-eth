@@ -337,30 +337,7 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
     uint256 myBalance = shortToken.balanceOf(_strategy);
     address collateralToken = address(token.collateralToken());
 
-    // trading the short token
-
-    // bytes memory selector = abi.encodeWithSelector(
-    //   IUniswapV2Router.swapExactTokensForTokens.selector,
-    //   myBalance,
-    //   0,
-    //   [address(shortToken), collateralToken],
-    //   0xED0262718A77e09C3C8F48696791747E878a5551,
-    //   block.timestamp
-    // );
-
-    // Just sending to random address
-
-    bytes memory selector = abi.encodeWithSelector(IERC20.transfer.selector, address(0xED0262718A77e09C3C8F48696791747E878a5551), myBalance);
-
-    return (address(shortToken), 0, selector);
-    // 0x7a250d5630b4cf539739df2c5dacb4c659f2488d
-
-    // IUniswapV2Router uniswapRouter = IUniswapV2Router(0x7a250d5630b4cf539739df2c5dacb4c659f2488d);
-
-    // uniswapRouter.swapExactTokensForTokens()
-
-    // address uniswapShortTokenAddress = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-    // return (uniswapShortTokenAddress, 0, selector);
+    return _getTradeCallData(_strategy, address(shortToken), collateralToken, myBalance, 0);
   }
 
   /**

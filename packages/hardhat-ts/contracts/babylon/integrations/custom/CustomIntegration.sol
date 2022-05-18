@@ -17,8 +17,6 @@ import { BytesLib } from "../../lib/BytesLib.sol";
 
 import { BaseIntegration } from "../BaseIntegration.sol";
 
-import "hardhat/console.sol";
-
 /**
  * @title CustomIntegration
  * @author Babylon Finance Protocol
@@ -80,17 +78,16 @@ abstract contract CustomIntegration is BaseIntegration, ReentrancyGuard, ICustom
     address[] calldata _tokensIn,
     uint256[] calldata _maxAmountsIn
   ) external override nonReentrant onlySystemContract {
-    console.log("_resultTokensOut", _resultTokensOut);
     CustomInfo memory customInfo = _createCustomInfo(_strategy, _data, _resultTokensOut);
     _validatePreJoinCustomData(customInfo);
 
     // Pre actions
-    (address targetAddressP, uint256 callValueP, bytes memory methodDataP) = _getPreActionCallData(_strategy, customInfo.addressParam, _resultTokensOut, 1);
+    (address targetAddressP, uint256 callValueP, bytes memory methodDataP) = _getPreActionCallData(_strategy, customInfo.addressParam, _resultTokensOut, 0);
     if (targetAddressP != address(0)) {
       // Approve spending of the pre action token
       (address approvalAsset, address spenderPre) = _preActionNeedsApproval(customInfo.addressParam, 0);
       if (approvalAsset != address(0)) {
-        customInfo.strategy.invokeApprove(spenderPre, approvalAsset, 2 ^ (256 - 1));
+        customInfo.strategy.invokeApprove(spenderPre, approvalAsset, 2**(256 - 1));
       }
       // Invoke protocol specific call
       customInfo.strategy.invokeFromIntegration(targetAddressP, callValueP, methodDataP);
@@ -106,10 +103,6 @@ abstract contract CustomIntegration is BaseIntegration, ReentrancyGuard, ICustom
       }
     }
     (address target, uint256 callValue, bytes memory methodData) = _getEnterCalldata(_strategy, _data, _resultTokensOut, _tokensIn, _maxAmountsIn);
-
-    console.log("target", target);
-    console.log("callValue", callValue);
-    // console.log("methodData", methodData);
     customInfo.strategy.invokeFromIntegration(target, callValue, methodData);
     customInfo.resultTokensInTransaction = IERC20(customInfo.resultToken).balanceOf(address(customInfo.strategy)).sub(customInfo.resultTokensInStrategy);
 
@@ -120,7 +113,7 @@ abstract contract CustomIntegration is BaseIntegration, ReentrancyGuard, ICustom
       // Approve spending of the post action token
       (address approvalAsset, address spenderPost) = _postActionNeedsApproval(customInfo.addressParam, 0);
       if (approvalAsset != address(0)) {
-        customInfo.strategy.invokeApprove(spenderPost, approvalAsset, 2 ^ (256 - 1));
+        customInfo.strategy.invokeApprove(spenderPost, approvalAsset, 2**(256 - 1));
       }
       // Invoke protocol specific call
       customInfo.strategy.invokeFromIntegration(targetAddressP, callValueP, methodDataP);
@@ -173,7 +166,7 @@ abstract contract CustomIntegration is BaseIntegration, ReentrancyGuard, ICustom
       // Approve spending of the post action token
       (address approvalAsset, address spenderPost) = _postActionNeedsApproval(customInfo.addressParam, 1);
       if (approvalAsset != address(0)) {
-        customInfo.strategy.invokeApprove(spenderPost, approvalAsset, 2 ^ (256 - 1));
+        customInfo.strategy.invokeApprove(spenderPost, approvalAsset, 2**(256 - 1));
       }
       // Invoke protocol specific call
       customInfo.strategy.invokeFromIntegration(targetAddressP, callValueP, methodDataP);
@@ -236,18 +229,12 @@ abstract contract CustomIntegration is BaseIntegration, ReentrancyGuard, ICustom
     uint256 _resultTokensInTransaction
   ) internal view returns (CustomInfo memory) {
     address add = BytesLib.decodeOpDataAddress(_data);
-    console.log("add", add);
     CustomInfo memory customInfo;
     customInfo.resultToken = _getResultToken(add);
     customInfo.addressParam = add;
     customInfo.data = _data;
     customInfo.strategy = IStrategy(_strategy);
-
-    console.log("_strategy", _strategy);
-    console.log("resultToken", customInfo.resultToken);
     customInfo.garden = IGarden(customInfo.strategy.garden());
-    // console.log
-    // console.log("TEST", IERC20(customInfo.resultToken).balanceOf(_strategy));
     customInfo.resultTokensInStrategy = IERC20(customInfo.resultToken).balanceOf(_strategy);
     customInfo.resultTokensInTransaction = _resultTokensInTransaction;
     return customInfo;
@@ -280,7 +267,6 @@ abstract contract CustomIntegration is BaseIntegration, ReentrancyGuard, ICustom
    * @param _customInfo               Struct containing custom information used in internal functions
    */
   function _validatePostJoinCustomData(CustomInfo memory _customInfo) internal view {
-    console.log(IERC20(_customInfo.resultToken).balanceOf(address(_customInfo.strategy)), _customInfo.resultTokensInStrategy);
     require(
       (IERC20(_customInfo.resultToken).balanceOf(address(_customInfo.strategy)) > _customInfo.resultTokensInStrategy),
       "The strategy did not receive the result tokens"

@@ -111,7 +111,7 @@ describe('Babylon integrations', function () {
                 eth(0.05), // maxGasFeePercentage: eth(0.05),
                 eth(0.09), // maxTradeSlippagePercentage: eth(0.09),
             ],
-            [4], // _opTypes
+            [5], // _opTypes
             [customIntegration.address], // _opIntegrations
             new ethers.utils.AbiCoder().encode(
                 ['address', 'uint256'],
