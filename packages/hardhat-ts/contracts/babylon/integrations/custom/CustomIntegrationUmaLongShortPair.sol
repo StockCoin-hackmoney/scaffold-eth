@@ -16,15 +16,13 @@ import { ExpandedIERC20 } from "../../../interface-uma/ExpandedIERC20.sol";
 
 import { IUniswapV2Router } from "../../interfaces/external/uniswap/IUniswapV2Router.sol";
 
-import "hardhat/console.sol";
-
 /**
  * @title CustomIntegrationSample
  * @author Babylon Finance Protocol
  *
  * Custom integration template
  */
-contract CustomIntegrationUmaLongShortPair is CustomIntegration {
+abstract contract CustomIntegrationUmaLongShortPair is CustomIntegration {
   using LowGasSafeMath for uint256;
   using PreciseUnitMath for uint256;
   using BytesLib for uint256;
@@ -61,7 +59,6 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
 
   function _isUmaTokenNotExpired(bytes memory _data) private view returns (bool) {
     ILongShortPair token = _getUmaTokenFromBytes(_data);
-    console.log("contractState", uint256(token.contractState()));
     return uint256(token.contractState()) == 0;
   }
 
@@ -131,8 +128,6 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
       bytes memory
     )
   {
-    console.log(_tokensIn[0]);
-    console.log(_maxAmountsIn[0]);
     require(_isUmaTokenNotExpired(_data), "Cannot send tokens to expired UMA token!");
     address umaToken = address(BytesLib.decodeOpDataAddressAssembly(_data, 12));
     ILongShortPair token = ILongShortPair(umaToken);
@@ -141,12 +136,9 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
 
     require(_tokensIn.length == 1 && _maxAmountsIn.length == 1, "Wrong amount of tokens provided");
     // check how to send the correct collateral in test
-    console.log("collateralToken", address(token.collateralToken()));
 
-    console.log("collateralPair", token.collateralPerPair());
     require(_tokensIn[0] == address(token.collateralToken()), "Wrong token selected to send as collateral!");
     uint256 amountTokensToCreate = ((_maxAmountsIn[0]) * 10**18) / token.collateralPerPair();
-    console.log("amountTokensToCreate", amountTokensToCreate);
     require(amountTokensToCreate > 0, "not enough tokens supplied!");
     bytes memory methodData = abi.encodeWithSelector(ILongShortPair.create.selector, amountTokensToCreate);
 
@@ -214,8 +206,6 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
   function getInputTokensAndWeights(bytes calldata _data) external view override returns (address[] memory _inputTokens, uint256[] memory _inputWeights) {
     address umaToken = address(BytesLib.decodeOpDataAddressAssembly(_data, 12));
     ILongShortPair token = ILongShortPair(umaToken);
-
-    console.log("returned Address", address(token.collateralToken()));
 
     address[] memory inputTokens = new address[](1);
     inputTokens[0] = address(token.collateralToken());
@@ -319,6 +309,7 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
   )
     internal
     view
+    virtual
     override
     returns (
       address,

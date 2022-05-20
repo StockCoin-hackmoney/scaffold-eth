@@ -16,7 +16,7 @@ const UniswapV3TradeIntegration = '0xc300FB5dE5384bcA63fb6eb3EfD9DB7dFd10325C';
 const NFT_URI = 'https://babylon.mypinata.cloud/ipfs/QmcL826qNckBzEk2P11w4GQrrQFwGvR6XmUCuQgBX9ck1v';
 const NFT_SEED = '504592746';
 
-describe('Babylon integrations', function () {
+describe.only('UMA LongShort pair Integration', function () {
     let owner;
     let garden;
     let strategy;
@@ -29,7 +29,7 @@ describe('Babylon integrations', function () {
         [, keeper, alice, bob] = await ethers.getSigners();
         controller = await ethers.getContractAt('IBabController', '0xD4a5b5fcB561dAF3aDF86F8477555B92FBa43b5F');
         owner = await impersonateAddress('0x97FcC2Ae862D03143b393e9fA73A32b563d57A6e');
-        // await controller.connect(owner).addKeeper(keeper.address);
+        await controller.connect(owner).addKeeper(keeper.address);
 
         // Creates a garden with custom integrations enabled
         const contribution = eth(1);
@@ -69,32 +69,26 @@ describe('Babylon integrations', function () {
         // garden = await ethers.getContractAt('IGarden', '0x2c4Beb32f0c80309876F028694B4633509e942D4');
 
 
-
-
     });
 
     beforeEach(async () => { });
 
     afterEach(async () => { });
 
-    it('can deploy a strategy with the UMA LongShortPair Custom integration', async () => {
+    it('Can deploy strategy with UMA LS pair long side', async () => {
 
 
         const longShortPair = await ethers.getContractAt("ILongShortPair", "0x94E653AF059550657e839a5DFCCA5a17fD17EFdf");
         const longTokenAddress = await longShortPair.longToken();
-        const longToken = await ethers.getContractAt("IERC20", longTokenAddress);
+        const longToken = await ethers.getContractAt("@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20", longTokenAddress);
         const shortTokenAddress = await longShortPair.shortToken();
-        const shortToken = await ethers.getContractAt("IERC20", shortTokenAddress);
-
-
-
-
+        const shortToken = await ethers.getContractAt("@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20", shortTokenAddress);
 
 
         const longShortPairETHSEP = "0x94E653AF059550657e839a5DFCCA5a17fD17EFdf";
 
         // We deploy the custom yearn integration. Change with your own integration when ready
-        const customIntegration = await deploy('CustomIntegrationUmaLongShortPair', {
+        const customIntegration = await deploy('CustomIntegrationUmaLong', {
             from: alice.address,
             args: [controller.address],
         });
@@ -140,38 +134,118 @@ describe('Babylon integrations', function () {
         await increaseTime(ONE_DAY_IN_SECONDS);
         await customStrategy.connect(keeper).executeStrategy(eth(1), 0);
 
-
-
-        // TODO assert that this fails!
-        // Finalize strategy
-        //await increaseTime(ONE_DAY_IN_SECONDS * 30);
-        //await customStrategy.connect(keeper).finalizeStrategy(0, '', 0);
-
-        // check that we have balance of LongToken, but not ShortToken
-        // assert(shortToken.balanceOf(customStrategy)).equals(0);
-        // assert(longToken.balanceOf(customStrategy)).greaterThan(0);
-
         const balanceShortToken = await shortToken.balanceOf(customStrategy.address);
         const balanceLongToken = await longToken.balanceOf(customStrategy.address);
+
+
+        // Right now the strategy cant sell short/long token because there is not enough liquidity on mainnet
+        // So both values would be the same
+
+
+        expect(balanceShortToken).equals(balanceLongToken);
+
+
+        // Finalizing the strategy will fail because tokens have not expired yet and dont expire automatically
+        await increaseTime(ONE_DAY_IN_SECONDS * 30);
+        await expect(customStrategy.connect(keeper).finalizeStrategy(0, '', 0)).to.be.revertedWith("Cannot exit before the token is expired and price has been received!");
+
 
 
         console.log("balanceShortToken", balanceShortToken);
         console.log("balanceLongToken", balanceLongToken);
 
-        // console.log(shortToken.balanceOf(customStrategy));
 
-        // console.log(longToken.balanceOf(customStrategy));
+    });
+
+    it('Can deploy strategy with UMA LS pair short side', async () => {
+
+
+        const longShortPair = await ethers.getContractAt("ILongShortPair", "0x94E653AF059550657e839a5DFCCA5a17fD17EFdf");
+        const longTokenAddress = await longShortPair.longToken();
+        const longToken = await ethers.getContractAt("@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20", longTokenAddress);
+        const shortTokenAddress = await longShortPair.shortToken();
+        const shortToken = await ethers.getContractAt("@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20", shortTokenAddress);
+
+        const longShortPairETHSEP = "0x94E653AF059550657e839a5DFCCA5a17fD17EFdf";
+
+        // We deploy the custom yearn integration. Change with your own integration when ready
+        const customIntegration = await deploy('CustomIntegrationUmaShort', {
+            from: alice.address,
+            args: [controller.address],
+        });
+
+        await garden.connect(alice).addStrategy(
+            'Execute my custom integration',
+            '💎',
+            [
+                eth(10), // maxCapitalRequested: eth(10),
+                eth(0.1), // stake: eth(0.1),
+                ONE_DAY_IN_SECONDS * 30, // strategyDuration: ONE_DAY_IN_SECONDS * 30,
+                eth(0.05), // expectedReturn: eth(0.05),
+                eth(0.1), // maxAllocationPercentage: eth(0.1),
+                eth(0.05), // maxGasFeePercentage: eth(0.05),
+                eth(0.09), // maxTradeSlippagePercentage: eth(0.09),
+            ],
+            [5], // _opTypes
+            [customIntegration.address], // _opIntegrations
+            new ethers.utils.AbiCoder().encode(
+                ['address', 'uint256'],
+                // long shor pair
+                [longShortPairETHSEP, 0] // integration params. We pass USDT vault
+            ), // _opEncodedDatas
+        );
+
+
+        const strategies = await garden.getStrategies();
+        customStrategy = await ethers.getContractAt('IStrategy', strategies[1]);
+
+        await garden.connect(alice).deposit(eth(1), 0, alice.address, ADDRESS_ZERO, {
+            value: eth(1),
+        });
+
+
+        const balance = await garden.balanceOf(alice.getAddress());
+
+        // Vote Strategy
+        await customStrategy.connect(keeper).resolveVoting([alice.address], [balance], 0);
+
+
+
+        // Execute strategy
+        await increaseTime(ONE_DAY_IN_SECONDS);
+        await customStrategy.connect(keeper).executeStrategy(eth(1), 0);
+
+        const balanceShortToken = await shortToken.balanceOf(customStrategy.address);
+        const balanceLongToken = await longToken.balanceOf(customStrategy.address);
+
+        // Right now the strategy cant sell short/long token because there is not enough liquidity on mainnet
+        // So both values would be the same
+
+
+        expect(balanceShortToken).equals(balanceLongToken);
+
+
+        // Finalizing the strategy will fail because tokens have not expired yet and dont expire automatically
+        await increaseTime(ONE_DAY_IN_SECONDS * 30);
+        await expect(customStrategy.connect(keeper).finalizeStrategy(0, '', 0)).to.be.revertedWith("Cannot exit before the token is expired and price has been received!");
+
+
+
+        console.log("balanceShortToken", balanceShortToken);
+        console.log("balanceLongToken", balanceLongToken);
+
+
     });
     it.skip('send usdc get long token', async () => {
 
-        const USDC = await ethers.getContractAt("IERC20", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
+        const USDC = await ethers.getContractAt("@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
         const usdcholder = await impersonateAddress("0x47ac0fb4f2d84898e4d9e7b4dab3c24507a6d503");
         const longShortPair = await ethers.getContractAt("ILongShortPair", "0x94E653AF059550657e839a5DFCCA5a17fD17EFdf");
 
         await USDC.connect(usdcholder).approve(longShortPair.address, eth(4000));
         await longShortPair.connect(usdcholder).create(100);
 
-        const longToken = await ethers.getContractAt("IERC20", "0x285e6252e2649a4dbf1244c504e0e86c92b745e7");
+        const longToken = await ethers.getContractAt("@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20", "0x285e6252e2649a4dbf1244c504e0e86c92b745e7");
         const amount = await longToken.balanceOf(usdcholder.address);
 
 
@@ -179,7 +253,7 @@ describe('Babylon integrations', function () {
     });
     it.skip('can swap shorttoken for usdc', async () => {
 
-        const USDC = await ethers.getContractAt("IERC20", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
+        const USDC = await ethers.getContractAt("@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
         const usdcholder = await impersonateAddress("0x47ac0fb4f2d84898e4d9e7b4dab3c24507a6d503");
         const longShortPair = await ethers.getContractAt("ILongShortPair", "0x94E653AF059550657e839a5DFCCA5a17fD17EFdf");
 
@@ -188,7 +262,7 @@ describe('Babylon integrations', function () {
         await longShortPair.connect(usdcholder).create(100);
 
         const shortTokenAddress = await longShortPair.shortToken();
-        const longToken = await ethers.getContractAt("IERC20", shortTokenAddress);
+        const longToken = await ethers.getContractAt("@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20", shortTokenAddress);
         const amount = await longToken.balanceOf(usdcholder.address);
         const uniswapContract = await ethers.getContractAt("IUniswapV2Router", "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D");
         const blockNumber = await ethers.provider.getBlockNumber();
@@ -209,13 +283,13 @@ describe('Babylon integrations', function () {
         const blockBefore = await ethers.provider.getBlock(blockNumber);
 
 
-        const USDC = await ethers.getContractAt("IERC20", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
+        const USDC = await ethers.getContractAt("@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
         const usdcholder = await impersonateAddress("0x47ac0fb4f2d84898e4d9e7b4dab3c24507a6d503");
         const uniswapContract = await ethers.getContractAt("IUniswapV2Router", "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D");
         const uniswapPool = await ethers.getContractAt("IUniswapV2PairB", "0x1b81da9182f26cd4ab565977f1c176e92bf0769d");
         const longShortPair = await ethers.getContractAt("ILongShortPair", "0x94E653AF059550657e839a5DFCCA5a17fD17EFdf");
         const shortTokenAddress = await longShortPair.shortToken();
-        const shortToken = await ethers.getContractAt("IERC20", shortTokenAddress);
+        const shortToken = await ethers.getContractAt("@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20", shortTokenAddress);
 
         await USDC.connect(usdcholder).approve(longShortPair.address, eth(400000000000000000));
         await longShortPair.connect(usdcholder).create(100000000);
