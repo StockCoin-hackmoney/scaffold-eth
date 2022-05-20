@@ -86,5 +86,9 @@
          "yarn workspace @scaffold-eth/hardhat format",
          "yarn workspace @scaffold-eth/hardhat solhint --fix"
       ]
+   },
+   "dependencies": {
+      "@balancer-labs/v2-solidity-utils": "^2.0.0",
+      "@balancer-labs/v2-vault": "^2.0.0"
    }
 }
