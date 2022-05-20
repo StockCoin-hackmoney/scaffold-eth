@@ -29,8 +29,6 @@ contract CustomIntegrationUmaShort is CustomIntegrationUmaLongShortPair {
   using BytesLib for uint256;
   using ControllerLib for IBabController;
 
-  address constant uniswapV2RouterAddress = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-
   constructor(IBabController _controller) CustomIntegrationUmaLongShortPair(_controller) {
     require(address(_controller) != address(0), "invalid address");
   }
