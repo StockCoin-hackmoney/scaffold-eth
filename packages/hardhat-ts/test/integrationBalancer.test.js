@@ -16,7 +16,7 @@ const UniswapV3TradeIntegration = '0xc300FB5dE5384bcA63fb6eb3EfD9DB7dFd10325C';
 const NFT_URI = 'https://babylon.mypinata.cloud/ipfs/QmcL826qNckBzEk2P11w4GQrrQFwGvR6XmUCuQgBX9ck1v';
 const NFT_SEED = '504592746';
 
-describe('Balancer integration', function () {
+describe.only('Balancer integration', function () {
     let owner;
     let garden;
     let strategy;
@@ -75,7 +75,7 @@ describe('Balancer integration', function () {
 
     it('can enter a strategy with the Balancer custom integration', async () => {
         const poolAddressStablePool = '0x06Df3b2bbB68adc8B0e302443692037ED9f91b42';
-        const balToken = await ethers.getContractAt('@balancer-labs/v2-solidity-utils/contracts/openzeppelin/IERC20.sol:IERC20', '0x06Df3b2bbB68adc8B0e302443692037ED9f91b42');
+        const balToken = await ethers.getContractAt('@balancer-labs/v2-solidity-utils/contracts/openzeppelin/IERC20.sol:IERC20', poolAddressStablePool);
 
         const customIntegration = await deploy('CustomIntegrationBalancerv2', {
             from: alice.address,
@@ -122,7 +122,16 @@ describe('Balancer integration', function () {
         await customStrategy.connect(keeper).executeStrategy(eth(10), 0);
 
         console.log("read balance");
-        const balBalance = await balToken.balanceOf(customStrategy.address);
+        let balBalance = await balToken.balanceOf(customStrategy.address);
         expect(balBalance).to.be.above(0);
+
+
+        // Finalize strategy
+        await increaseTime(ONE_DAY_IN_SECONDS * 30);
+        console.log("finalize strategy");
+        await customStrategy.connect(keeper).finalizeStrategy(0, '', 0);
+        balBalance = await balToken.balanceOf(customStrategy.address);
+
+        expect(balBalance).to.be.equals(0);
     });
 });

@@ -126,7 +126,7 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
     address strategy = _strategy;
 
     (IERC20[] memory tokens, , ) = IVault(vaultAddress).getPoolTokens(poolId);
-    require(_tokensIn.length == tokens.length, "Must supply same number of tokens as are already in the pool!");
+    // require(_tokensIn.length == tokens.length, "Must supply same number of tokens as are already in the pool!");
 
     IVault.JoinPoolRequest memory joinRequest = getJoinRequest(_tokensIn, tokens, _maxAmountsIn);
 
@@ -169,6 +169,33 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
     return joinRequest;
   }
 
+  function getExitRequest(
+    address[] calldata _tokensIn,
+    IERC20[] memory tokens,
+    uint256[] calldata _minAmountsOut,
+    uint256 BPTBalance
+  ) private view returns (IVault.ExitPoolRequest memory exitRequest) {
+    exitRequest.minAmountsOut = new uint256[](_tokensIn.length);
+    exitRequest.assets = new IAsset[](tokens.length);
+
+    for (uint8 i = 0; i < tokens.length; ++i) {
+      exitRequest.assets[i] = IAsset(address(tokens[i]));
+      for (uint8 k = 0; k < _minAmountsOut.length; ++k) {
+        if (_tokensIn[k] == address(tokens[i])) {
+          exitRequest.minAmountsOut[i] = _minAmountsOut[k];
+          break;
+        }
+      }
+    }
+
+    exitRequest.userData = abi.encode(
+      uint256(1), /* EXACT_BPT_IN_FOR_TOKENS_OUT */
+      BPTBalance /* bptAmountIn */
+    );
+
+    return exitRequest;
+  }
+
   /**
    * Return exit custom calldata
    *
@@ -183,11 +210,11 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
    * @return bytes                     Trade calldata
    */
   function _getExitCalldata(
-    address, /* _strategy */
-    bytes calldata, /* _data */
+    address _strategy,
+    bytes calldata _data,
     uint256, /* _resultTokensIn */
-    address[] calldata, /* _tokensOut */
-    uint256[] calldata /* _minAmountsOut */
+    address[] calldata _tokensOut,
+    uint256[] calldata _minAmountsOut
   )
     internal
     view
@@ -198,8 +225,21 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
       bytes memory
     )
   {
-    /** FILL THIS */
-    return (address(0), 0, bytes(""));
+    bytes32 poolId = IBasePool(BytesLib.decodeOpDataAddress(_data)).getPoolId();
+
+    address strategy = _strategy;
+
+    //BPT Balance
+
+    IERC20 BPT = IERC20(BytesLib.decodeOpDataAddress(_data));
+    uint256 BPTBalance = BPT.balanceOf(strategy);
+
+    (IERC20[] memory tokens, , ) = IVault(vaultAddress).getPoolTokens(poolId);
+    require(_tokensOut.length == tokens.length, "Must supply same number of tokens as are already in the pool!");
+
+    IVault.ExitPoolRequest memory exitRequest = getExitRequest(_tokensOut, tokens, _minAmountsOut, BPTBalance);
+    bytes memory methodData = abi.encodeWithSelector(IVault.exitPool.selector, poolId, strategy, strategy, exitRequest);
+    return (vaultAddress, 0, methodData);
   }
 
   /**
@@ -267,12 +307,31 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
    * @return exitTokens                 List of output tokens to receive on exit
    * @return _minAmountsOut             List of min amounts for the output tokens to receive
    */
-  function getOutputTokensAndMinAmountOut(
-    bytes calldata, /* _data */
-    uint256 /* _liquidity */
-  ) external pure override returns (address[] memory exitTokens, uint256[] memory _minAmountsOut) {
-    /** FILL THIS */
-    return (new address[](1), new uint256[](1));
+  function getOutputTokensAndMinAmountOut(bytes calldata _data, uint256)
+    external
+    view
+    override
+    returns (address[] memory exitTokens, uint256[] memory _minAmountsOut)
+  {
+    IBasePool pool = IBasePool(BytesLib.decodeOpDataAddressAssembly(_data, 12));
+    IVault vault = IVault(vaultAddress);
+    bytes32 poolId = pool.getPoolId();
+
+    (IERC20[] memory tokens, uint256[] memory balances, uint256 lastBlock) = vault.getPoolTokens(poolId);
+
+    uint256 tokenBalanceTotal;
+    _minAmountsOut = new uint256[](tokens.length);
+    exitTokens = new address[](tokens.length);
+
+    for (uint8 i = 0; i < tokens.length; ++i) {
+      tokenBalanceTotal += getBalanceFullDecimals(balances[i], tokens[i]);
+    }
+    for (uint8 i = 0; i < tokens.length; ++i) {
+      exitTokens[i] = address(tokens[i]);
+      _minAmountsOut[i] = 0;
+    }
+
+    return (exitTokens, _minAmountsOut);
   }
 
   /**
