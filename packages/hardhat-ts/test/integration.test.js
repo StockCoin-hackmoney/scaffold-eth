@@ -75,6 +75,7 @@ describe.skip('Babylon integrations', function () {
   it('can deploy a strategy with the Yearn Custom integration', async () => {
 
     // We deploy the custom yearn integration. Change with your own integration when ready
+
     const customIntegration = await deploy('CustomIntegrationYearn', {
       from: alice.address,
       args: [controller.address, '0x61c733fE0Eb89b75440A21cD658C4011ec512EB8'],
@@ -119,5 +120,13 @@ describe.skip('Babylon integrations', function () {
     // Finalize strategy
     await increaseTime(ONE_DAY_IN_SECONDS * 30);
     await customStrategy.connect(keeper).finalizeStrategy(0, '', 0);
+
+
+    const USDC = await ethers.getContractAt("IERC20", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
+
+    console.log("balanceUSDC", USDC.balanceOf(customStrategy.address));
+
   });
+
+
 });

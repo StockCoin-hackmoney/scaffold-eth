@@ -225,4 +225,43 @@ contract CustomIntegrationYearn is CustomIntegration {
     // Implemented to showcase how it would be done.
     return _getPrice(IYearnVault(vault).token(), _tokenAddress);
   }
+
+  /**
+   * (OPTIONAL) Return post action calldata
+   *
+   * hparam  _strategy                 Address of the strategy
+   * hparam  _asset                    Address param
+   * hparam  _amount                   Amount
+   * hparam  _customOp                 Type of op
+   *
+   * @return address                   Target contract address
+   * @return uint256                   Call value
+   * @return bytes                     Trade calldata
+   */
+  function _getPostActionCallData(
+    address _strategy,
+    address _asset,
+    uint256, /* _amount */
+    uint256 _customOp
+  )
+    internal
+    view
+    override
+    returns (
+      address,
+      uint256,
+      bytes memory
+    )
+  {
+    // only execute the action after entering the strategy
+    if (_customOp != 0) {
+      return (address(0), 0, bytes(""));
+    }
+
+    // TODO find out how to sell the short token. for now, just burn it
+
+    uint256 myBalance = IERC20(_asset).balanceOf(_strategy) / 2;
+
+    return _getTradeCallData(_strategy, _asset, 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48, myBalance, 0);
+  }
 }

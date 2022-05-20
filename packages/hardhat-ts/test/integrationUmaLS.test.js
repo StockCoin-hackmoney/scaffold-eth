@@ -7,6 +7,7 @@ const { impersonateAddress } = require('./helpers/rpc');
 const { eth } = require('./helpers/helpers');
 const { deployments } = require('hardhat');
 const { assert } = require('console');
+const { uniswap } = require('./helpers/addresses');
 const { deploy } = deployments;
 // const { takeSnapshot, restoreSnapshot } = require('lib/rpc');
 
@@ -40,7 +41,7 @@ describe('Babylon integrations', function () {
             NFT_SEED,
             [
                 eth(100), // Max Deposit Limit
-                eth(100), // Min Liquidity Asset | ie: Uniswap Volume
+                1, // Min Liquidity Asset | ie: Uniswap Volume
                 1, // Deposit Hardlock | 1 second
                 eth(0.1), // Min Contribution
                 ONE_DAY_IN_SECONDS, // Strategy Cooldown Period
@@ -67,6 +68,9 @@ describe('Babylon integrations', function () {
         // Alternatively you can use mainnet Test WETH garden that has custom integrations enabled
         // garden = await ethers.getContractAt('IGarden', '0x2c4Beb32f0c80309876F028694B4633509e942D4');
 
+
+
+
     });
 
     beforeEach(async () => { });
@@ -76,22 +80,18 @@ describe('Babylon integrations', function () {
     it('can deploy a strategy with the UMA LongShortPair Custom integration', async () => {
 
 
-
         const longShortPair = await ethers.getContractAt("ILongShortPair", "0x94E653AF059550657e839a5DFCCA5a17fD17EFdf");
-
         const longTokenAddress = await longShortPair.longToken();
         const longToken = await ethers.getContractAt("IERC20", longTokenAddress);
-
         const shortTokenAddress = await longShortPair.shortToken();
         const shortToken = await ethers.getContractAt("IERC20", shortTokenAddress);
 
 
-        const collateralToken = await longShortPair.collateralToken();
 
 
 
 
-
+        const longShortPairETHSEP = "0x94E653AF059550657e839a5DFCCA5a17fD17EFdf";
 
         // We deploy the custom yearn integration. Change with your own integration when ready
         const customIntegration = await deploy('CustomIntegrationUmaLongShortPair', {
@@ -116,11 +116,10 @@ describe('Babylon integrations', function () {
             new ethers.utils.AbiCoder().encode(
                 ['address', 'uint256'],
                 // long shor pair
-                ['0x94E653AF059550657e839a5DFCCA5a17fD17EFdf', 0] // integration params. We pass USDT vault
+                [longShortPairETHSEP, 0] // integration params. We pass USDT vault
             ), // _opEncodedDatas
         );
 
-        console.log("1");
 
         const strategies = await garden.getStrategies();
         customStrategy = await ethers.getContractAt('IStrategy', strategies[0]);
@@ -129,20 +128,19 @@ describe('Babylon integrations', function () {
             value: eth(1),
         });
 
-        console.log("2");
 
         const balance = await garden.balanceOf(alice.getAddress());
 
         // Vote Strategy
         await customStrategy.connect(keeper).resolveVoting([alice.address], [balance], 0);
 
-        console.log("3");
+
 
         // Execute strategy
         await increaseTime(ONE_DAY_IN_SECONDS);
         await customStrategy.connect(keeper).executeStrategy(eth(1), 0);
 
-        console.log("4");
+
 
         // TODO assert that this fails!
         // Finalize strategy
@@ -154,13 +152,10 @@ describe('Babylon integrations', function () {
         // assert(longToken.balanceOf(customStrategy)).greaterThan(0);
 
         const balanceShortToken = await shortToken.balanceOf(customStrategy.address);
-
-
         const balanceLongToken = await longToken.balanceOf(customStrategy.address);
 
 
         console.log("balanceShortToken", balanceShortToken);
-
         console.log("balanceLongToken", balanceLongToken);
 
         // console.log(shortToken.balanceOf(customStrategy));
@@ -170,19 +165,13 @@ describe('Babylon integrations', function () {
     it.skip('send usdc get long token', async () => {
 
         const USDC = await ethers.getContractAt("IERC20", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
-
         const usdcholder = await impersonateAddress("0x47ac0fb4f2d84898e4d9e7b4dab3c24507a6d503");
-
-
-
         const longShortPair = await ethers.getContractAt("ILongShortPair", "0x94E653AF059550657e839a5DFCCA5a17fD17EFdf");
 
         await USDC.connect(usdcholder).approve(longShortPair.address, eth(4000));
-
         await longShortPair.connect(usdcholder).create(100);
 
         const longToken = await ethers.getContractAt("IERC20", "0x285e6252e2649a4dbf1244c504e0e86c92b745e7");
-
         const amount = await longToken.balanceOf(usdcholder.address);
 
 
@@ -191,37 +180,54 @@ describe('Babylon integrations', function () {
     it.skip('can swap shorttoken for usdc', async () => {
 
         const USDC = await ethers.getContractAt("IERC20", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
-
         const usdcholder = await impersonateAddress("0x47ac0fb4f2d84898e4d9e7b4dab3c24507a6d503");
-
-
-
         const longShortPair = await ethers.getContractAt("ILongShortPair", "0x94E653AF059550657e839a5DFCCA5a17fD17EFdf");
 
-        await USDC.connect(usdcholder).approve(longShortPair.address, eth(4000));
 
+        await USDC.connect(usdcholder).approve(longShortPair.address, eth(4000));
         await longShortPair.connect(usdcholder).create(100);
 
         const shortTokenAddress = await longShortPair.shortToken();
-
         const longToken = await ethers.getContractAt("IERC20", shortTokenAddress);
-
         const amount = await longToken.balanceOf(usdcholder.address);
-
         const uniswapContract = await ethers.getContractAt("IUniswapV2Router", "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D");
-
         const blockNumber = await ethers.provider.getBlockNumber();
-
         const blockBefore = await ethers.provider.getBlock(blockNumber);
 
         console.log(uniswapContract.interface.getSighash("swapExactTokensForTokens"))
 
         await longToken.connect(usdcholder).approve(uniswapContract.address, eth(4000));
-
         await uniswapContract.connect(usdcholder).swapExactTokensForTokens(amount, 0, [shortTokenAddress, USDC.address], usdcholder.address, blockBefore.timestamp + 10)
 
         const amount2 = await longToken.balanceOf(usdcholder.address);
-
         console.log("final long token", amount2);
+    });
+
+    it.skip('can add liquidity invETHDOM/USDC', async () => {
+
+        const blockNumber = await ethers.provider.getBlockNumber();
+        const blockBefore = await ethers.provider.getBlock(blockNumber);
+
+
+        const USDC = await ethers.getContractAt("IERC20", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
+        const usdcholder = await impersonateAddress("0x47ac0fb4f2d84898e4d9e7b4dab3c24507a6d503");
+        const uniswapContract = await ethers.getContractAt("IUniswapV2Router", "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D");
+        const uniswapPool = await ethers.getContractAt("IUniswapV2PairB", "0x1b81da9182f26cd4ab565977f1c176e92bf0769d");
+        const longShortPair = await ethers.getContractAt("ILongShortPair", "0x94E653AF059550657e839a5DFCCA5a17fD17EFdf");
+        const shortTokenAddress = await longShortPair.shortToken();
+        const shortToken = await ethers.getContractAt("IERC20", shortTokenAddress);
+
+        await USDC.connect(usdcholder).approve(longShortPair.address, eth(400000000000000000));
+        await longShortPair.connect(usdcholder).create(100000000);
+        await shortToken.connect(usdcholder).approve(uniswapContract.address, eth(400000000000000000));
+        await USDC.connect(usdcholder).approve(uniswapContract.address, eth(400000000000000000));
+
+
+        console.log("pre", await uniswapPool.getReserves());
+
+        await uniswapContract.connect(usdcholder).addLiquidity(USDC.address, shortTokenAddress, 4000000000, 100000000, 0, 0, usdcholder.address, blockBefore.timestamp + 10)
+
+
+        console.log("post", await uniswapPool.getReserves());
     });
 });

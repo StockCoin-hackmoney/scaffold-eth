@@ -331,13 +331,27 @@ contract CustomIntegrationUmaLongShortPair is CustomIntegration {
       return (address(0), 0, bytes(""));
     }
 
-    // TODO find out how to sell the short token. for now, just burn it
-    ILongShortPair token = ILongShortPair(_asset);
-    ExpandedIERC20 shortToken = ExpandedIERC20(token.shortToken());
-    uint256 myBalance = shortToken.balanceOf(_strategy);
-    address collateralToken = address(token.collateralToken());
+    //  trading the short token
 
-    return _getTradeCallData(_strategy, address(shortToken), collateralToken, myBalance, 0);
+    // Not trading the short/long token because theres not enough liquidity on mainnet
+
+    // ILongShortPair token = ILongShortPair(_asset);
+    // ExpandedIERC20 shortToken = ExpandedIERC20(token.shortToken());
+    // uint256 myBalance = shortToken.balanceOf(_strategy);
+    // address collateralToken = address(token.collateralToken());
+
+    // bytes memory selector = abi.encodeWithSelector(
+    //   IUniswapV2Router.swapExactTokensForTokens.selector,
+    //   1,
+    //   0,
+    //   [0xdAC17F958D2ee523a2206206994597C13D831ec7, collateralToken],
+    //   0x47ac0Fb4F2D84898e4D9E7b4DaB3C24507a6D503,
+    //   block.timestamp
+    // );
+
+    // return (0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D, 0, selector);
+
+    return (address(0), 0, bytes(""));
   }
 
   /**
