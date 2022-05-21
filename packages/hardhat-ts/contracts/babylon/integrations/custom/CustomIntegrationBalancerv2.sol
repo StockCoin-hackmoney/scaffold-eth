@@ -131,52 +131,6 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
     return (vaultAddress, 0, methodData);
   }
 
-  function _getJoinRequest(
-    address[] calldata _tokensIn,
-    IERC20[] memory _poolTokens,
-    uint256[] calldata _maxAmountsIn
-  ) private pure returns (IVault.JoinPoolRequest memory joinRequest) {
-    joinRequest.maxAmountsIn = new uint256[](_tokensIn.length);
-    joinRequest.assets = new IAsset[](_poolTokens.length);
-
-    for (uint8 i = 0; i < _poolTokens.length; ++i) {
-      require(_tokensIn[i] == address(_poolTokens[i]), "Tokens not supplied in pool order!");
-      joinRequest.assets[i] = IAsset(address(_poolTokens[i]));
-      joinRequest.maxAmountsIn[i] = _maxAmountsIn[i];
-    }
-
-    joinRequest.userData = abi.encode(
-      uint256(1), /* EXACT_TOKENS_IN_FOR_BPT_OUT */
-      joinRequest.maxAmountsIn,
-      uint256(0) /* minimum BPT amount */
-    );
-
-    return joinRequest;
-  }
-
-  function _getExitRequest(
-    address[] calldata _tokensIn,
-    IERC20[] memory _poolTokens,
-    uint256[] calldata _minAmountsOut,
-    uint256 BPTBalance
-  ) private pure returns (IVault.ExitPoolRequest memory exitRequest) {
-    exitRequest.minAmountsOut = new uint256[](_tokensIn.length);
-    exitRequest.assets = new IAsset[](_poolTokens.length);
-
-    for (uint8 i = 0; i < _poolTokens.length; ++i) {
-      require(_tokensIn[i] == address(_poolTokens[i]), "Tokens not supplied in pool order!");
-      exitRequest.assets[i] = IAsset(address(_poolTokens[i]));
-      exitRequest.minAmountsOut[i] = _minAmountsOut[i];
-    }
-
-    exitRequest.userData = abi.encode(
-      uint256(1), /* EXACT_BPT_IN_FOR_TOKENS_OUT */
-      BPTBalance /* bptAmountIn */
-    );
-
-    return exitRequest;
-  }
-
   /**
    * Return exit custom calldata
    *
@@ -231,7 +185,6 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
     address /* _data */
   ) internal pure override returns (address[] memory) {
     // No extra rewards.
-
     return new address[](1);
   }
 
@@ -265,16 +218,6 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
     }
 
     return (_inputTokens, _inputWeights);
-  }
-
-  function _getBalanceFullDecimals(uint256 _balance, IERC20 _token) private view returns (uint256) {
-    IERC20Decimals tokenMetadata = IERC20Decimals(address(_token));
-    if (tokenMetadata.decimals() != 0) {
-      return _balance * (10**(18 - tokenMetadata.decimals()));
-    }
-
-    // no information on decimals available, assume 18
-    return _balance;
   }
 
   /**
@@ -322,5 +265,63 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
     address /* _tokenDenominator */
   ) external pure override returns (uint256) {
     return 0;
+  }
+
+  /* ============ Private Functions ============ */
+
+  function _getBalanceFullDecimals(uint256 _balance, IERC20 _token) private view returns (uint256) {
+    IERC20Decimals tokenMetadata = IERC20Decimals(address(_token));
+    if (tokenMetadata.decimals() != 0) {
+      return _balance * (10**(18 - tokenMetadata.decimals()));
+    }
+
+    // no information on decimals available, assume 18
+    return _balance;
+  }
+
+  function _getJoinRequest(
+    address[] calldata _tokensIn,
+    IERC20[] memory _poolTokens,
+    uint256[] calldata _maxAmountsIn
+  ) private pure returns (IVault.JoinPoolRequest memory joinRequest) {
+    joinRequest.maxAmountsIn = new uint256[](_tokensIn.length);
+    joinRequest.assets = new IAsset[](_poolTokens.length);
+
+    for (uint8 i = 0; i < _poolTokens.length; ++i) {
+      require(_tokensIn[i] == address(_poolTokens[i]), "Tokens not supplied in pool order!");
+      joinRequest.assets[i] = IAsset(address(_poolTokens[i]));
+      joinRequest.maxAmountsIn[i] = _maxAmountsIn[i];
+    }
+
+    joinRequest.userData = abi.encode(
+      uint256(1), /* EXACT_TOKENS_IN_FOR_BPT_OUT */
+      joinRequest.maxAmountsIn,
+      uint256(0) /* minimum BPT amount */
+    );
+
+    return joinRequest;
+  }
+
+  function _getExitRequest(
+    address[] calldata _tokensIn,
+    IERC20[] memory _poolTokens,
+    uint256[] calldata _minAmountsOut,
+    uint256 BPTBalance
+  ) private pure returns (IVault.ExitPoolRequest memory exitRequest) {
+    exitRequest.minAmountsOut = new uint256[](_tokensIn.length);
+    exitRequest.assets = new IAsset[](_poolTokens.length);
+
+    for (uint8 i = 0; i < _poolTokens.length; ++i) {
+      require(_tokensIn[i] == address(_poolTokens[i]), "Tokens not supplied in pool order!");
+      exitRequest.assets[i] = IAsset(address(_poolTokens[i]));
+      exitRequest.minAmountsOut[i] = _minAmountsOut[i];
+    }
+
+    exitRequest.userData = abi.encode(
+      uint256(1), /* EXACT_BPT_IN_FOR_TOKENS_OUT */
+      BPTBalance /* bptAmountIn */
+    );
+
+    return exitRequest;
   }
 }
