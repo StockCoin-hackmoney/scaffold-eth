@@ -460,6 +460,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@balancer-labs/v2-solidity-utils@npm:2.0.0, @balancer-labs/v2-solidity-utils@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "@balancer-labs/v2-solidity-utils@npm:2.0.0"
+  checksum: 4a52967dfe6596f692a6d83e3df686d3fd12568e49e4624ade585c4c4a0757b2ba41ace98e4ce29132b19af80e503ae556d32288454393fd67916ca48ad6d5fb
+  languageName: node
+  linkType: hard
+
+"@balancer-labs/v2-vault@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "@balancer-labs/v2-vault@npm:2.0.0"
+  dependencies:
+    "@balancer-labs/v2-solidity-utils": 2.0.0
+  checksum: 8e45b4104c3e53ec7275f32209496d3263f011a23b5ea290e860a995ff6928bb96a927e4d0f5a824ac71229eac8a9ff9973cbf6bbdfc6493eef3ccffe50e34bf
+  languageName: node
+  linkType: hard
+
 "@chainlink/contracts@npm:^0.4.0":
   version: 0.4.1
   resolution: "@chainlink/contracts@npm:0.4.1"
@@ -3044,6 +3060,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@scaffold-eth/typescript@workspace:."
   dependencies:
+    "@balancer-labs/v2-solidity-utils": ^2.0.0
+    "@balancer-labs/v2-vault": ^2.0.0
     cross-env: ^7.0.3
     eslint: ^8.14.0
     husky: ^7.0.4
