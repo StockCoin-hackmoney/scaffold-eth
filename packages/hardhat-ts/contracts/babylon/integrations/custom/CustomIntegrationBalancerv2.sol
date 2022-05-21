@@ -2,7 +2,12 @@
 
 pragma solidity 0.7.6;
 pragma experimental ABIEncoderV2;
+
+import { IAsset } from "@balancer-labs/v2-vault/contracts/interfaces/IAsset.sol";
+import { IBasePool } from "@balancer-labs/v2-vault/contracts/interfaces/IBasePool.sol";
 import { IERC20 } from "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/IERC20.sol";
+import { IVault } from "@balancer-labs/v2-vault/contracts/interfaces/IVault.sol";
+
 import { IBabController } from "../../interfaces/IBabController.sol";
 import { CustomIntegration } from "./CustomIntegration.sol";
 import { PreciseUnitMath } from "../../lib/PreciseUnitMath.sol";
@@ -11,37 +16,30 @@ import { BytesLib } from "../../lib/BytesLib.sol";
 import { ControllerLib } from "../../lib/ControllerLib.sol";
 import { PoolBalances } from "@balancer-labs/v2-vault/contracts/PoolBalances.sol";
 
-import { IVault } from "@balancer-labs/v2-vault/contracts/interfaces/IVault.sol";
-import { IAsset } from "@balancer-labs/v2-vault/contracts/interfaces/IAsset.sol";
-import { IBasePool } from "@balancer-labs/v2-vault/contracts/interfaces/IBasePool.sol";
-
-import "hardhat/console.sol";
-
+/**
+ * @title Interface to supply the getVault function missing in IBasePool
+ */
 interface IMinimalPool {
   function getVault() external view returns (IVault);
 }
 
+/**
+ * @title Interface to get the decimals for an ERC-20 token
+ */
 interface IERC20Decimals {
   function decimals() external view returns (uint8);
 }
 
 /**
- * @title CustomIntegrationSample
- * @author Babylon Finance Protocol
+ * @title Custom integration for the Balancer V2 protocol
+ * @author ChrisiPK, MartelAxe
  *
- * Custom integration template
+ * This integration allows Babylon Finance gardens to provide liquidity to Balancer V2 pools.
  */
 contract CustomIntegrationBalancerv2 is CustomIntegration {
-  using LowGasSafeMath for uint256;
-  using PreciseUnitMath for uint256;
-  using BytesLib for uint256;
-  using ControllerLib for IBabController;
-
-  address constant vaultAddress = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
-
   /* ============ State Variables ============ */
 
-  /* Add State variables here if any. Pass to the constructor */
+  address private constant vaultAddress = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
 
   /* ============ Constructor ============ */
 
@@ -57,19 +55,18 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
   /* =============== Internal Functions ============== */
 
   /**
-   * Whether or not the data provided is valid
+   * Whether or not the data provided is valid. Checks if the supplied address is a Balancer V2 pool contract.
    *
-   * hparam  _data                     Data provided
+   * @param  _data                     Data provided
    * @return bool                      True if the data is correct
    */
   function _isValid(bytes memory _data) internal view override returns (bool) {
-    IMinimalPool pool = IMinimalPool(BytesLib.decodeOpDataAddressAssembly(_data, 12));
-
-    return address(pool.getVault()) == vaultAddress;
+    return address(IMinimalPool(BytesLib.decodeOpDataAddressAssembly(_data, 12)).getVault()) == vaultAddress;
   }
 
   /**
    * Which address needs to be approved (IERC-20) for the input tokens.
+   * Always returns the vault address.
    *
    * hparam  _data                     Data provided
    * hparam  _opType                   O for enter, 1 for exit
@@ -83,7 +80,8 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
   }
 
   /**
-   * The address of the IERC-20 token obtained after entering this operation
+   * The address of the IERC-20 token obtained after entering this operation.
+   * Returns the address of the Balancer pool as each pool is its own token contract.
    *
    * @param  _token                     Address provided as param
    * @return address                    Address of the resulting lp token
@@ -93,13 +91,13 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
   }
 
   /**
-   * Return enter custom calldata
+   * Creates function call data to provide liquidity to a Balancer pool.
    *
-   * hparam  _strategy                 Address of the strategy
-   * hparam  _data                     OpData e.g. Address of the pool
+   * @param  _strategy                 Address of the strategy
+   * @param  _data                     OpData e.g. Address of the pool
    * hparam  _resultTokensOut          Amount of result tokens to send
-   * hparam  _tokensIn                 Addresses of tokens to send to spender to enter
-   * hparam  _maxAmountsIn             Amounts of tokens to send to spender
+   * @param  _tokensIn                 Addresses of tokens to send to spender to enter
+   * @param  _maxAmountsIn             Amounts of tokens to send to spender
    *
    * @return address                   Target contract address
    * @return uint256                   Call value
@@ -122,42 +120,37 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
     )
   {
     bytes32 poolId = IBasePool(BytesLib.decodeOpDataAddress(_data)).getPoolId();
-
     address strategy = _strategy;
 
-    (IERC20[] memory tokens, , ) = IVault(vaultAddress).getPoolTokens(poolId);
-    // require(_tokensIn.length == tokens.length, "Must supply same number of tokens as are already in the pool!");
+    (IERC20[] memory poolTokens, , ) = IVault(vaultAddress).getPoolTokens(poolId);
+    require(_tokensIn.length == poolTokens.length, "Must supply same number of tokens as are already in the pool!");
 
-    IVault.JoinPoolRequest memory joinRequest = getJoinRequest(_tokensIn, tokens, _maxAmountsIn);
-
-    // struct JoinPoolRequest {
-    //     IAsset[] assets;
-    //     uint256[] maxAmountsIn;
-    //     bytes userData;
-    //     bool fromInternalBalance;
-    // }
-
+    IVault.JoinPoolRequest memory joinRequest = _getJoinRequest(_tokensIn, poolTokens, _maxAmountsIn);
     bytes memory methodData = abi.encodeWithSelector(IVault.joinPool.selector, poolId, strategy, strategy, joinRequest);
 
     return (vaultAddress, 0, methodData);
   }
 
-  function getJoinRequest(
+  function _getJoinRequest(
     address[] calldata _tokensIn,
-    IERC20[] memory tokens,
+    IERC20[] memory _poolTokens,
     uint256[] calldata _maxAmountsIn
-  ) private view returns (IVault.JoinPoolRequest memory joinRequest) {
+  ) private pure returns (IVault.JoinPoolRequest memory joinRequest) {
     joinRequest.maxAmountsIn = new uint256[](_tokensIn.length);
-    joinRequest.assets = new IAsset[](tokens.length);
+    joinRequest.assets = new IAsset[](_poolTokens.length);
 
-    for (uint8 i = 0; i < tokens.length; ++i) {
-      joinRequest.assets[i] = IAsset(address(tokens[i]));
+    // reorder tokens to conform to pool token order as required by Balancer
+    for (uint8 i = 0; i < _poolTokens.length; ++i) {
+      joinRequest.assets[i] = IAsset(address(_poolTokens[i]));
+      bool tokenFound;
       for (uint8 k = 0; k < _maxAmountsIn.length; ++k) {
-        if (_tokensIn[k] == address(tokens[i])) {
+        if (_tokensIn[k] == address(_poolTokens[i])) {
           joinRequest.maxAmountsIn[i] = _maxAmountsIn[k];
+          tokenFound = true;
           break;
         }
       }
+      require(tokenFound, "Not all tokens supplied which are required to join the pool!");
     }
 
     joinRequest.userData = abi.encode(
@@ -169,12 +162,12 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
     return joinRequest;
   }
 
-  function getExitRequest(
+  function _getExitRequest(
     address[] calldata _tokensIn,
     IERC20[] memory tokens,
     uint256[] calldata _minAmountsOut,
     uint256 BPTBalance
-  ) private view returns (IVault.ExitPoolRequest memory exitRequest) {
+  ) private pure returns (IVault.ExitPoolRequest memory exitRequest) {
     exitRequest.minAmountsOut = new uint256[](_tokensIn.length);
     exitRequest.assets = new IAsset[](tokens.length);
 
@@ -199,11 +192,11 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
   /**
    * Return exit custom calldata
    *
-   * hparam  _strategy                 Address of the strategy
-   * hparam  _data                     OpData e.g. Address of the pool
+   * @param  _strategy                 Address of the strategy
+   * @param  _data                     OpData e.g. Address of the pool
    * hparam  _resultTokensIn           Amount of result tokens to send
-   * hparam  _tokensOut                Addresses of tokens to receive
-   * hparam  _minAmountsOut            Amounts of input tokens to receive
+   * @param  _tokensOut                Addresses of tokens to receive
+   * @param  _minAmountsOut            Amounts of input tokens to receive
    *
    * @return address                   Target contract address
    * @return uint256                   Call value
@@ -226,10 +219,7 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
     )
   {
     bytes32 poolId = IBasePool(BytesLib.decodeOpDataAddress(_data)).getPoolId();
-
     address strategy = _strategy;
-
-    //BPT Balance
 
     IERC20 BPT = IERC20(BytesLib.decodeOpDataAddress(_data));
     uint256 BPTBalance = BPT.balanceOf(strategy);
@@ -237,8 +227,9 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
     (IERC20[] memory tokens, , ) = IVault(vaultAddress).getPoolTokens(poolId);
     require(_tokensOut.length == tokens.length, "Must supply same number of tokens as are already in the pool!");
 
-    IVault.ExitPoolRequest memory exitRequest = getExitRequest(_tokensOut, tokens, _minAmountsOut, BPTBalance);
+    IVault.ExitPoolRequest memory exitRequest = _getExitRequest(_tokensOut, tokens, _minAmountsOut, BPTBalance);
     bytes memory methodData = abi.encodeWithSelector(IVault.exitPool.selector, poolId, strategy, strategy, exitRequest);
+
     return (vaultAddress, 0, methodData);
   }
 
@@ -271,32 +262,31 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
     IVault vault = IVault(vaultAddress);
     bytes32 poolId = pool.getPoolId();
 
-    (IERC20[] memory tokens, uint256[] memory balances, uint256 lastBlock) = vault.getPoolTokens(poolId);
+    (IERC20[] memory poolTokens, uint256[] memory balances, ) = vault.getPoolTokens(poolId);
 
     uint256 tokenBalanceTotal;
-    _inputWeights = new uint256[](tokens.length);
-    _inputTokens = new address[](tokens.length);
+    _inputWeights = new uint256[](poolTokens.length);
+    _inputTokens = new address[](poolTokens.length);
 
-    for (uint8 i = 0; i < tokens.length; ++i) {
-      tokenBalanceTotal += getBalanceFullDecimals(balances[i], tokens[i]);
+    for (uint8 i = 0; i < poolTokens.length; ++i) {
+      tokenBalanceTotal += _getBalanceFullDecimals(balances[i], poolTokens[i]);
     }
-    for (uint8 i = 0; i < tokens.length; ++i) {
-      _inputTokens[i] = address(tokens[i]);
-      _inputWeights[i] = (getBalanceFullDecimals(balances[i], tokens[i]) * (10**18)) / tokenBalanceTotal;
-      console.log("token", _inputTokens[i], "amount", _inputWeights[i]);
+    for (uint8 i = 0; i < poolTokens.length; ++i) {
+      _inputTokens[i] = address(poolTokens[i]);
+      _inputWeights[i] = (_getBalanceFullDecimals(balances[i], poolTokens[i]) * (10**18)) / tokenBalanceTotal;
     }
 
     return (_inputTokens, _inputWeights);
   }
 
-  function getBalanceFullDecimals(uint256 balance, IERC20 token) private view returns (uint256) {
-    IERC20Decimals tokenMetadata = IERC20Decimals(address(token));
+  function _getBalanceFullDecimals(uint256 _balance, IERC20 _token) private view returns (uint256) {
+    IERC20Decimals tokenMetadata = IERC20Decimals(address(_token));
     if (tokenMetadata.decimals() != 0) {
-      return balance * (10**(18 - tokenMetadata.decimals()));
+      return _balance * (10**(18 - tokenMetadata.decimals()));
     }
 
     // no information on decimals available, assume 18
-    return balance;
+    return _balance;
   }
 
   /**
@@ -307,24 +297,22 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
    * @return exitTokens                 List of output tokens to receive on exit
    * @return _minAmountsOut             List of min amounts for the output tokens to receive
    */
-  function getOutputTokensAndMinAmountOut(bytes calldata _data, uint256)
-    external
-    view
-    override
-    returns (address[] memory exitTokens, uint256[] memory _minAmountsOut)
-  {
+  function getOutputTokensAndMinAmountOut(
+    bytes calldata _data,
+    uint256 /* _liquidity */
+  ) external view override returns (address[] memory exitTokens, uint256[] memory _minAmountsOut) {
     IBasePool pool = IBasePool(BytesLib.decodeOpDataAddressAssembly(_data, 12));
     IVault vault = IVault(vaultAddress);
     bytes32 poolId = pool.getPoolId();
 
-    (IERC20[] memory tokens, uint256[] memory balances, uint256 lastBlock) = vault.getPoolTokens(poolId);
+    (IERC20[] memory tokens, uint256[] memory balances, ) = vault.getPoolTokens(poolId);
 
     uint256 tokenBalanceTotal;
     _minAmountsOut = new uint256[](tokens.length);
     exitTokens = new address[](tokens.length);
 
     for (uint8 i = 0; i < tokens.length; ++i) {
-      tokenBalanceTotal += getBalanceFullDecimals(balances[i], tokens[i]);
+      tokenBalanceTotal += _getBalanceFullDecimals(balances[i], tokens[i]);
     }
     for (uint8 i = 0; i < tokens.length; ++i) {
       exitTokens[i] = address(tokens[i]);
@@ -345,7 +333,6 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
     bytes calldata, /* _data */
     address /* _tokenDenominator */
   ) external pure override returns (uint256) {
-    /** FILL THIS */
     return 0;
   }
 }
