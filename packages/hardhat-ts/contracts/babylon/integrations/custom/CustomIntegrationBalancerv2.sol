@@ -136,7 +136,7 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
    *
    * @param  _strategy                 Address of the strategy
    * @param  _data                     OpData e.g. Address of the pool
-   * hparam  _resultTokensIn           Amount of result tokens to send
+   * @param  _resultTokensIn           Amount of result tokens to send
    * @param  _tokensOut                Addresses of tokens to receive
    * @param  _minAmountsOut            Amounts of input tokens to receive
    *
@@ -147,7 +147,7 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
   function _getExitCalldata(
     address _strategy,
     bytes calldata _data,
-    uint256, /* _resultTokensIn */
+    uint256 _resultTokensIn,
     address[] calldata _tokensOut,
     uint256[] calldata _minAmountsOut
   )
@@ -162,14 +162,12 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
   {
     bytes32 poolId = IBasePool(BytesLib.decodeOpDataAddress(_data)).getPoolId();
     address strategy = _strategy;
-
-    IERC20 BPT = IERC20(BytesLib.decodeOpDataAddress(_data));
-    uint256 BPTBalance = BPT.balanceOf(strategy);
+    uint256 resultTokensIn = _resultTokensIn;
 
     (IERC20[] memory tokens, , ) = IVault(vaultAddress).getPoolTokens(poolId);
     require(_tokensOut.length == tokens.length, "Must supply same number of tokens as are already in the pool!");
 
-    IVault.ExitPoolRequest memory exitRequest = _getExitRequest(_tokensOut, tokens, _minAmountsOut, BPTBalance);
+    IVault.ExitPoolRequest memory exitRequest = _getExitRequest(_tokensOut, tokens, _minAmountsOut, resultTokensIn);
     bytes memory methodData = abi.encodeWithSelector(IVault.exitPool.selector, poolId, strategy, strategy, exitRequest);
 
     return (vaultAddress, 0, methodData);
@@ -306,7 +304,7 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
     address[] calldata _tokensIn,
     IERC20[] memory _poolTokens,
     uint256[] calldata _minAmountsOut,
-    uint256 BPTBalance
+    uint256 _resultTokensIn
   ) private pure returns (IVault.ExitPoolRequest memory exitRequest) {
     exitRequest.minAmountsOut = new uint256[](_tokensIn.length);
     exitRequest.assets = new IAsset[](_poolTokens.length);
@@ -319,7 +317,7 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
 
     exitRequest.userData = abi.encode(
       uint256(1), /* EXACT_BPT_IN_FOR_TOKENS_OUT */
-      BPTBalance /* bptAmountIn */
+      _resultTokensIn /* bptAmountIn */
     );
 
     return exitRequest;
