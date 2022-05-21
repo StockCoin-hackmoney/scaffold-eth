@@ -17,22 +17,16 @@ import { ExpandedIERC20 } from "../../../interface-uma/ExpandedIERC20.sol";
 import { IUniswapV2Router } from "../../interfaces/external/uniswap/IUniswapV2Router.sol";
 
 /**
- * @title CustomIntegrationSample
- * @author Babylon Finance Protocol
+ * @title Custom integration for the Balancer V2 protocol
+ * @author ChrisiPK, MartelAxe
  *
- * Custom integration template
+ * This integration allows Babylon Finance gardens to connect to a UMA Long short pair.
  */
 abstract contract CustomIntegrationUmaLongShortPair is CustomIntegration {
   using LowGasSafeMath for uint256;
   using PreciseUnitMath for uint256;
   using BytesLib for uint256;
   using ControllerLib for IBabController;
-
-  /* ============ State Variables ============ */
-
-  /* Add State variables here if any. Pass to the constructor */
-
-  /* ============ Constructor ============ */
 
   /**
    * Creates the integration
@@ -132,10 +126,7 @@ abstract contract CustomIntegrationUmaLongShortPair is CustomIntegration {
     address umaToken = address(BytesLib.decodeOpDataAddressAssembly(_data, 12));
     ILongShortPair token = ILongShortPair(umaToken);
 
-    // address longToken = address(token.longToken());
-
     require(_tokensIn.length == 1 && _maxAmountsIn.length == 1, "Wrong amount of tokens provided");
-    // check how to send the correct collateral in test
 
     require(_tokensIn[0] == address(token.collateralToken()), "Wrong token selected to send as collateral!");
     uint256 amountTokensToCreate = ((_maxAmountsIn[0]) * 10**18) / token.collateralPerPair();
@@ -242,14 +233,6 @@ abstract contract CustomIntegrationUmaLongShortPair is CustomIntegration {
    * hparam  _tokenDenominator          Token we receive the capital in
    * @return uint256                    Amount of result tokens to receive
    */
-  // function getPriceResultToken(
-  //   bytes calldata _data,
-  //   address _tokenDenominator
-  // ) external pure override returns (uint256) {
-  //   LongShortPair token = _getUmaTokenFromBytes(_data);
-  //   require(_tokenDenominator == token.collateralToken, "Cannot give price in other denominator than in collateral token!");
-  //   return token.collateralPerPair;
-  // }
 
   function getPriceResultToken(
     bytes calldata, /* _data */
@@ -318,29 +301,6 @@ abstract contract CustomIntegrationUmaLongShortPair is CustomIntegration {
     )
   {
     // only execute the action after entering the strategy
-    if (_customOp != 0) {
-      return (address(0), 0, bytes(""));
-    }
-
-    //  trading the short token
-
-    // Not trading the short/long token because theres not enough liquidity on mainnet
-
-    // ILongShortPair token = ILongShortPair(_asset);
-    // ExpandedIERC20 shortToken = ExpandedIERC20(token.shortToken());
-    // uint256 myBalance = shortToken.balanceOf(_strategy);
-    // address collateralToken = address(token.collateralToken());
-
-    // bytes memory selector = abi.encodeWithSelector(
-    //   IUniswapV2Router.swapExactTokensForTokens.selector,
-    //   1,
-    //   0,
-    //   [0xdAC17F958D2ee523a2206206994597C13D831ec7, collateralToken],
-    //   0x47ac0Fb4F2D84898e4D9E7b4DaB3C24507a6D503,
-    //   block.timestamp
-    // );
-
-    // return (0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D, 0, selector);
 
     return (address(0), 0, bytes(""));
   }

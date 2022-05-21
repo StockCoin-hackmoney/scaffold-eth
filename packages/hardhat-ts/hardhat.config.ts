@@ -102,6 +102,20 @@ export const config: HardhatUserConfig = {
           },
         },
       },
+      {
+        version: '0.6.0',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 250,
+          },
+          outputSelection: {
+            '*': {
+              '*': ['storageLayout'],
+            },
+          },
+        },
+      },
     ],
   },
   mocha: {
