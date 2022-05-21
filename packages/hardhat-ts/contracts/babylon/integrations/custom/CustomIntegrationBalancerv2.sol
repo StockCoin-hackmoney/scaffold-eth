@@ -139,18 +139,10 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
     joinRequest.maxAmountsIn = new uint256[](_tokensIn.length);
     joinRequest.assets = new IAsset[](_poolTokens.length);
 
-    // reorder tokens to conform to pool token order as required by Balancer
     for (uint8 i = 0; i < _poolTokens.length; ++i) {
+      require(_tokensIn[i] == address(_poolTokens[i]), "Tokens not supplied in pool order!");
       joinRequest.assets[i] = IAsset(address(_poolTokens[i]));
-      bool tokenFound;
-      for (uint8 k = 0; k < _maxAmountsIn.length; ++k) {
-        if (_tokensIn[k] == address(_poolTokens[i])) {
-          joinRequest.maxAmountsIn[i] = _maxAmountsIn[k];
-          tokenFound = true;
-          break;
-        }
-      }
-      require(tokenFound, "Not all tokens supplied which are required to join the pool!");
+      joinRequest.maxAmountsIn[i] = _maxAmountsIn[i];
     }
 
     joinRequest.userData = abi.encode(
@@ -164,21 +156,17 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
 
   function _getExitRequest(
     address[] calldata _tokensIn,
-    IERC20[] memory tokens,
+    IERC20[] memory _poolTokens,
     uint256[] calldata _minAmountsOut,
     uint256 BPTBalance
   ) private pure returns (IVault.ExitPoolRequest memory exitRequest) {
     exitRequest.minAmountsOut = new uint256[](_tokensIn.length);
-    exitRequest.assets = new IAsset[](tokens.length);
+    exitRequest.assets = new IAsset[](_poolTokens.length);
 
-    for (uint8 i = 0; i < tokens.length; ++i) {
-      exitRequest.assets[i] = IAsset(address(tokens[i]));
-      for (uint8 k = 0; k < _minAmountsOut.length; ++k) {
-        if (_tokensIn[k] == address(tokens[i])) {
-          exitRequest.minAmountsOut[i] = _minAmountsOut[k];
-          break;
-        }
-      }
+    for (uint8 i = 0; i < _poolTokens.length; ++i) {
+      require(_tokensIn[i] == address(_poolTokens[i]), "Tokens not supplied in pool order!");
+      exitRequest.assets[i] = IAsset(address(_poolTokens[i]));
+      exitRequest.minAmountsOut[i] = _minAmountsOut[i];
     }
 
     exitRequest.userData = abi.encode(
