@@ -95,7 +95,7 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
    *
    * @param  _strategy                 Address of the strategy
    * @param  _data                     OpData e.g. Address of the pool
-   * hparam  _resultTokensOut          Amount of result tokens to send
+   * @param  _resultTokensOut          Amount of result tokens to send
    * @param  _tokensIn                 Addresses of tokens to send to spender to enter
    * @param  _maxAmountsIn             Amounts of tokens to send to spender
    *
@@ -106,7 +106,7 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
   function _getEnterCalldata(
     address _strategy,
     bytes calldata _data,
-    uint256, /* _resultTokensOut */
+    uint256 _resultTokensOut,
     address[] calldata _tokensIn,
     uint256[] calldata _maxAmountsIn
   )
@@ -121,11 +121,12 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
   {
     bytes32 poolId = IBasePool(BytesLib.decodeOpDataAddress(_data)).getPoolId();
     address strategy = _strategy;
+    uint256 resultTokensOut = _resultTokensOut;
 
     (IERC20[] memory poolTokens, , ) = IVault(vaultAddress).getPoolTokens(poolId);
     require(_tokensIn.length == poolTokens.length, "Must supply same number of tokens as are already in the pool!");
 
-    IVault.JoinPoolRequest memory joinRequest = _getJoinRequest(_tokensIn, poolTokens, _maxAmountsIn);
+    IVault.JoinPoolRequest memory joinRequest = _getJoinRequest(_tokensIn, poolTokens, _maxAmountsIn, resultTokensOut);
     bytes memory methodData = abi.encodeWithSelector(IVault.joinPool.selector, poolId, strategy, strategy, joinRequest);
 
     return (vaultAddress, 0, methodData);
@@ -280,7 +281,8 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
   function _getJoinRequest(
     address[] calldata _tokensIn,
     IERC20[] memory _poolTokens,
-    uint256[] calldata _maxAmountsIn
+    uint256[] calldata _maxAmountsIn,
+    uint256 _resultTokensOut
   ) private pure returns (IVault.JoinPoolRequest memory joinRequest) {
     joinRequest.maxAmountsIn = new uint256[](_tokensIn.length);
     joinRequest.assets = new IAsset[](_poolTokens.length);
@@ -294,7 +296,7 @@ contract CustomIntegrationBalancerv2 is CustomIntegration {
     joinRequest.userData = abi.encode(
       uint256(1), /* EXACT_TOKENS_IN_FOR_BPT_OUT */
       joinRequest.maxAmountsIn,
-      uint256(0) /* minimum BPT amount */
+      _resultTokensOut /* minimum BPT amount */
     );
 
     return joinRequest;
