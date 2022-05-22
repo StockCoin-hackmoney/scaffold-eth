@@ -13,14 +13,15 @@ import { ControllerLib } from "../../lib/ControllerLib.sol";
 
 import { ILongShortPair } from "../../../interface-uma/ILongShortPair.sol";
 import { ExpandedIERC20 } from "../../../interface-uma/ExpandedIERC20.sol";
-
-import { IUniswapV2Router } from "../../interfaces/external/uniswap/IUniswapV2Router.sol";
+import { ISwapRouter } from "../../interfaces/external/uniswap-v3/ISwapRouter.sol";
 
 /**
- * @title Custom integration for the Balancer V2 protocol
+ * @title Custom integration for the UMA Long Short Pair
  * @author ChrisiPK, MartelAxe
  *
  * This integration allows Babylon Finance gardens to connect to a UMA Long short pair.
+ * Depending on constructor parameters, only one side of the pair will be kept, the other
+ * side will be swapped away.
  */
 abstract contract CustomIntegrationUmaLongShortPair is CustomIntegration {
   using LowGasSafeMath for uint256;
@@ -29,6 +30,7 @@ abstract contract CustomIntegrationUmaLongShortPair is CustomIntegration {
   using ControllerLib for IBabController;
 
   bool private keepShortToken;
+  address private constant uniswapRouterAddress = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
   /**
    * Creates the integration
@@ -68,6 +70,14 @@ abstract contract CustomIntegrationUmaLongShortPair is CustomIntegration {
     address umaToken = address(BytesLib.decodeOpDataAddressAssembly(_data, 12));
     ILongShortPair token = ILongShortPair(umaToken);
     return token;
+  }
+
+  function _getTokenToSwapAway(ILongShortPair token) private view returns (ExpandedIERC20) {
+    if (keepShortToken) {
+      return token.longToken();
+    } else {
+      return token.shortToken();
+    }
   }
 
   /**
@@ -178,6 +188,58 @@ abstract contract CustomIntegrationUmaLongShortPair is CustomIntegration {
   }
 
   /**
+   * Return post action calldata. Swaps away the token of the pair which we do not want to keep.
+   *
+   * @param  _strategy                 Address of the strategy
+   * @param  _asset                    Address param
+   * hparam  _amount                   Amount
+   * @param  _customOp                 Type of op
+   *
+   * @return address                   Target contract address
+   * @return uint256                   Call value
+   * @return bytes                     Trade calldata
+   */
+  function _getPostActionCallData(
+    address _strategy,
+    address _asset,
+    uint256, /* _amount */
+    uint256 _customOp
+  )
+    internal
+    view
+    override
+    returns (
+      address,
+      uint256,
+      bytes memory
+    )
+  {
+    // only execute the action after entering the strategy
+    if (_customOp != 0) {
+      return (address(0), 0, bytes(""));
+    }
+
+    ILongShortPair token = ILongShortPair(_asset);
+    ExpandedIERC20 tokenToTrade = _getTokenToSwapAway(token);
+    uint256 myBalance = tokenToTrade.balanceOf(_strategy);
+    address collateralToken = address(token.collateralToken());
+
+    bytes memory selector = abi.encodeWithSelector(
+      ISwapRouter.exactInputSingle.selector,
+      address(tokenToTrade),
+      address(collateralToken),
+      500,
+      address(this),
+      block.timestamp + 10,
+      myBalance,
+      0,
+      0
+    );
+
+    return (uniswapRouterAddress, 0, selector);
+  }
+
+  /**
    * The list of addresses of the IERC-20 tokens mined as rewards during the strategy
    *
    * hparam  _data                      Address provided as param
@@ -188,6 +250,18 @@ abstract contract CustomIntegrationUmaLongShortPair is CustomIntegration {
   ) internal pure override returns (address[] memory) {
     // No rewards
     return new address[](1);
+  }
+
+  function _postActionNeedsApproval(address _asset, uint8 _customOp) internal view override returns (address, address) {
+    // post action only needs approval when entering the strategy
+    if (_customOp != 0) {
+      return (address(0), address(0));
+    }
+
+    ILongShortPair token = ILongShortPair(_asset);
+    ExpandedIERC20 tokenToSwap = _getTokenToSwapAway(token);
+
+    return (address(tokenToSwap), uniswapRouterAddress);
   }
 
   /* ============ External Functions ============ */
