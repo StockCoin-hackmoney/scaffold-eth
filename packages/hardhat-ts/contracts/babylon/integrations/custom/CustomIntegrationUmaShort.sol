@@ -29,7 +29,7 @@ contract CustomIntegrationUmaShort is CustomIntegrationUmaLongShortPair {
   using BytesLib for uint256;
   using ControllerLib for IBabController;
 
-  constructor(IBabController _controller) CustomIntegrationUmaLongShortPair(_controller) {
+  constructor(IBabController _controller) CustomIntegrationUmaLongShortPair(_controller, true) {
     require(address(_controller) != address(0), "invalid address");
   }
 

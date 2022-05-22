@@ -112,7 +112,7 @@ describe.only('UMA LongShort pair Integration', function () {
         //Adding liquidity to pool ETHDOMSEP/USDC LongToken
 
         await USDC.connect(usdcholder).approve(longShortPairETHSEP.address, eth(400000000000000000));
-        await longShortPairETHSEP.connect(usdcholder).create(40000000);
+        await longShortPairETHSEP.connect(usdcholder).create(400000000);
 
 
         //Adding liquidity to pool ETHDOMSEP/USDC
@@ -134,8 +134,8 @@ describe.only('UMA LongShort pair Integration', function () {
             fee: 500,
             tickLower: parseInt(slot0.tick) - tickSpacing * 10,
             tickUpper: parseInt(slot0.tick) + tickSpacing * 10,
-            amount0Desired: 20000000,
-            amount1Desired: 30000000,
+            amount0Desired: 200000000,
+            amount1Desired: 300000000,
             amount0Min: 0,
             amount1Min: 0,
             recipient: usdcholder.address,
@@ -183,8 +183,8 @@ describe.only('UMA LongShort pair Integration', function () {
             fee: 500,
             tickLower: parseInt(slot0.tick) - tickSpacing * 10,
             tickUpper: parseInt(slot0.tick) + tickSpacing * 10,
-            amount0Desired: 20000000,
-            amount1Desired: 30000000,
+            amount0Desired: 200000000,
+            amount1Desired: 300000000,
             amount0Min: 0,
             amount1Min: 0,
             recipient: usdcholder.address,
@@ -279,9 +279,8 @@ describe.only('UMA LongShort pair Integration', function () {
         // delta of 0.1 for eth price change
         expect(parsedbalanceLongToken).closeTo(amountOfLSTokens, 0.1)
 
-        // short token will be less than long token
-
-        expect(parsedbalanceShortToken).to.be.below(parsedbalanceLongToken);
+        // all short tokens should have been swapped away
+        expect(parsedbalanceShortToken).to.be.equal(0);
     });
 
     it('Can not finalize the strategy until the token is expired long side', async () => {
@@ -363,9 +362,8 @@ describe.only('UMA LongShort pair Integration', function () {
         // delta of 0.1 for eth price change
         expect(parsedBalanceShortToken).closeTo(amountOfLSTokens, 0.1)
 
-        // long token will be less than short token
-
-        expect(parsedBalanceLongToken).to.be.below(parsedBalanceShortToken);
+        // all long tokens should have been swapped away
+        expect(parsedBalanceLongToken).to.be.equal(0);
 
     });
 

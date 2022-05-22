@@ -28,13 +28,16 @@ abstract contract CustomIntegrationUmaLongShortPair is CustomIntegration {
   using BytesLib for uint256;
   using ControllerLib for IBabController;
 
+  bool private keepShortToken;
+
   /**
    * Creates the integration
    *
    * @param _controller                   Address of the controller
    */
-  constructor(IBabController _controller) CustomIntegration("custom_uma_longshortpair_sample", _controller) {
+  constructor(IBabController _controller, bool _keepShortToken) CustomIntegration("custom_uma_longshortpair_sample", _controller) {
     require(address(_controller) != address(0), "invalid address");
+    keepShortToken = _keepShortToken;
   }
 
   /* =============== Internal Functions ============== */
@@ -88,9 +91,12 @@ abstract contract CustomIntegrationUmaLongShortPair is CustomIntegration {
    * @return address                    Address of the resulting lp token
    */
   function _getResultToken(address _token) internal view override returns (address) {
-    // TODO find out how we can return long and short tokens here!
     ILongShortPair token = ILongShortPair(_token);
-    return address(token.longToken());
+    if (keepShortToken) {
+      return address(token.shortToken());
+    } else {
+      return address(token.longToken());
+    }
   }
 
   /**
