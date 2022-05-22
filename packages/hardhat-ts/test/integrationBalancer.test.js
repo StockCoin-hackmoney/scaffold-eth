@@ -16,7 +16,7 @@ const UniswapV3TradeIntegration = '0xc300FB5dE5384bcA63fb6eb3EfD9DB7dFd10325C';
 const NFT_URI = 'https://babylon.mypinata.cloud/ipfs/QmcL826qNckBzEk2P11w4GQrrQFwGvR6XmUCuQgBX9ck1v';
 const NFT_SEED = '504592746';
 
-describe.only('Balancer integration', function () {
+describe('Balancer integration', function () {
   let owner;
   let garden;
   let strategy;
@@ -29,7 +29,11 @@ describe.only('Balancer integration', function () {
     [, keeper, alice, bob] = await ethers.getSigners();
     controller = await ethers.getContractAt('IBabController', '0xD4a5b5fcB561dAF3aDF86F8477555B92FBa43b5F');
     owner = await impersonateAddress('0x97FcC2Ae862D03143b393e9fA73A32b563d57A6e');
-    await controller.connect(owner).addKeeper(keeper.address);
+    const validContract = await controller.isValidKeeper(keeper.address);
+
+    if (!validContract) {
+      await controller.connect(owner).addKeeper(keeper.address);
+    }
 
     // Creates a garden with custom integrations enabled
     const contribution = eth(1);
