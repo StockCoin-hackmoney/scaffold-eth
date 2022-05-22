@@ -26,7 +26,6 @@ describe.only('UMA LongShort pair Integration', function () {
   let keeper;
   let alice;
 
-  // 
   let longTokenAddress;
   let longToken;
   let shortTokenAddress;
@@ -77,8 +76,6 @@ describe.only('UMA LongShort pair Integration', function () {
     // Alternatively you can use mainnet Test WETH garden that has custom integrations enabled
     // garden = await ethers.getContractAt('IGarden', '0x2c4Beb32f0c80309876F028694B4633509e942D4');
 
-    // Long short Pair for ETH SEP integration 
-
     longShortPairETHSEPAddress = "0x94E653AF059550657e839a5DFCCA5a17fD17EFdf";
     longShortPairETHSEP = await ethers.getContractAt("ILongShortPair", longShortPairETHSEPAddress);
     longTokenAddress = await longShortPairETHSEP.longToken();
@@ -95,28 +92,18 @@ describe.only('UMA LongShort pair Integration', function () {
 
     const poolLongTokenAddress = await uniswapFactory.getPool(USDC.address, longToken.address, 500);
 
-    console.log("Created pool for longToken/USDC at: ", poolLongTokenAddress);
-
-
     const poolETHDOMUSDC = await ethers.getContractAt("IUniswapV3Pool", poolLongTokenAddress);
     // Initialize pool 
     await USDC.connect(usdcholder).approve(poolLongTokenAddress, eth(400000000000000000));
     await longToken.connect(usdcholder).approve(poolLongTokenAddress, eth(400000000000000000));
 
-
-
     await poolETHDOMUSDC.connect(usdcholder).initialize(calculateSqrtPriceX96(1, 18, 18).toFixed(0));
 
-    console.log("pool initialized");
-
     //Adding liquidity to pool ETHDOMSEP/USDC LongToken
-
     await USDC.connect(usdcholder).approve(longShortPairETHSEP.address, eth(400000000000000000));
     await longShortPairETHSEP.connect(usdcholder).create(400000000);
 
-
     //Adding liquidity to pool ETHDOMSEP/USDC
-
     let slot0 = await poolETHDOMUSDC.slot0();
 
     let tickSpacing = parseInt(await poolETHDOMUSDC.tickSpacing());
@@ -145,28 +132,19 @@ describe.only('UMA LongShort pair Integration', function () {
     await USDC.connect(usdcholder).approve("0xC36442b4a4522E871399CD717aBDD847Ab11FE88", eth(400000000000000000));
     await longToken.connect(usdcholder).approve("0xC36442b4a4522E871399CD717aBDD847Ab11FE88", eth(400000000000000000));
 
-
     const uniswapV3NPositionManager = await ethers.getContractAt("INonfungiblePositionManager", "0xC36442b4a4522E871399CD717aBDD847Ab11FE88");
     await uniswapV3NPositionManager.connect(usdcholder).mint(mintParams);
 
-    console.log("Liquidity added for longtoken/USC")
-
-
     //Create pool for short Token / usdc
-
     await uniswapFactory.createPool(USDC.address, shortToken.address, 500);
     const poolShortTokenAddress = await uniswapFactory.getPool(USDC.address, shortToken.address, 500);
     const poolinvETHDOMUSDC = await ethers.getContractAt("IUniswapV3Pool", poolShortTokenAddress);
 
-    console.log("Created pool for shortToken/USDC at: ", poolShortTokenAddress);
     // Initialize pool 
-
     await poolinvETHDOMUSDC.connect(usdcholder).initialize(calculateSqrtPriceX96(1, 18, 18).toFixed(0));
-    console.log("pool initialized");
 
     await USDC.connect(usdcholder).approve(poolShortTokenAddress, eth(400000000000000000));
     await shortToken.connect(usdcholder).approve(poolShortTokenAddress, eth(400000000000000000));
-
 
     //Adding liquidity to pool ETHDOMSEP/USDC
     slot0 = await poolinvETHDOMUSDC.slot0();
@@ -189,18 +167,12 @@ describe.only('UMA LongShort pair Integration', function () {
       amount1Min: 0,
       recipient: usdcholder.address,
       deadline: blockBefore.timestamp + 10
-    }
-
+    };
 
     await USDC.connect(usdcholder).approve("0xC36442b4a4522E871399CD717aBDD847Ab11FE88", eth(400000000000000000));
     await shortToken.connect(usdcholder).approve("0xC36442b4a4522E871399CD717aBDD847Ab11FE88", eth(400000000000000000));
 
-
     await uniswapV3NPositionManager.connect(usdcholder).mint(mintParams);
-
-    console.log("Liquidity added for  short token/USC")
-
-
   });
 
   beforeEach(async () => { });
@@ -237,9 +209,7 @@ describe.only('UMA LongShort pair Integration', function () {
     );
   });
 
-
   it('Can get correct amount of long tokens and short tokens after executing strategy long side', async () => {
-
     const strategies = await garden.getStrategies();
     customStrategy = await ethers.getContractAt('IStrategy', strategies[0]);
 
@@ -256,17 +226,14 @@ describe.only('UMA LongShort pair Integration', function () {
     await increaseTime(ONE_DAY_IN_SECONDS);
     await customStrategy.connect(keeper).executeStrategy(eth(1), 0);
 
-
     // collateralPerPair = ratio of tokens created by quantity of usdc
     const collateralPerPair = await longShortPairETHSEP.collateralPerPair();
 
     // Calculating amount of USDC by 1 ether
-
     const AggregatorV3ETHUSDC = await ethers.getContractAt("AggregatorV3Interface", "0x986b5E1e1755e3C2440e960477f25201B0a8bbD4");
     const latestRoundData = await AggregatorV3ETHUSDC.latestRoundData();
     const ethPerUSDC = ethers.utils.formatEther(latestRoundData['answer'])
     const totalUSDC = 1 / ethPerUSDC;
-
 
     const amountOfLSTokens = totalUSDC / ethers.utils.formatEther(collateralPerPair);
     const balanceLongToken = await longToken.balanceOf(customStrategy.address);
@@ -284,16 +251,12 @@ describe.only('UMA LongShort pair Integration', function () {
   });
 
   it('Can not finalize the strategy until the token is expired long side', async () => {
-
     // Finalizing the strategy will fail because tokens have not expired yet and dont expire automatically
     await increaseTime(ONE_DAY_IN_SECONDS * 30);
     await expect(customStrategy.connect(keeper).finalizeStrategy(0, '', 0)).to.be.revertedWith("Cannot exit before the token is expired and price has been received!");
-
   });
 
-
   it('Can deploy strategy with UMA LS pair short side', async () => {
-
     // We deploy the custom yearn integration. Change with your own integration when ready
     const customIntegration = await deploy('CustomIntegrationUmaShort', {
       from: alice.address,
@@ -323,7 +286,6 @@ describe.only('UMA LongShort pair Integration', function () {
   });
 
   it('Can get correct amount of long tokens and short tokens after executing strategy short side', async () => {
-
     const strategies = await garden.getStrategies();
     customStrategy = await ethers.getContractAt('IStrategy', strategies[1]);
 
@@ -344,12 +306,10 @@ describe.only('UMA LongShort pair Integration', function () {
     const collateralPerPair = await longShortPairETHSEP.collateralPerPair();
 
     // Calculating amount of USDC by 1 ether
-
     const AggregatorV3ETHUSDC = await ethers.getContractAt("AggregatorV3Interface", "0x986b5E1e1755e3C2440e960477f25201B0a8bbD4");
     const latestRoundData = await AggregatorV3ETHUSDC.latestRoundData();
     const ethPerUSDC = ethers.utils.formatEther(latestRoundData['answer'])
     const totalUSDC = 1 / ethPerUSDC;
-
 
     const amountOfLSTokens = totalUSDC / ethers.utils.formatEther(collateralPerPair);
     const balanceShortToken = await shortToken.balanceOf(customStrategy.address);
@@ -364,14 +324,11 @@ describe.only('UMA LongShort pair Integration', function () {
 
     // all long tokens should have been swapped away
     expect(parsedBalanceLongToken).to.be.equal(0);
-
   });
 
   it('Can not finalize the strategy until the token is expired short side', async () => {
-
     // Finalizing the strategy will fail because tokens have not expired yet and dont expire automatically
     await increaseTime(ONE_DAY_IN_SECONDS * 30);
     await expect(customStrategy.connect(keeper).finalizeStrategy(0, '', 0)).to.be.revertedWith("Cannot exit before the token is expired and price has been received!");
-
   });
 });
