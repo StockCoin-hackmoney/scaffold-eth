@@ -15,7 +15,7 @@ import { ILongShortPair } from "../../../interface-uma/ILongShortPair.sol";
 import { ExpandedIERC20 } from "../../../interface-uma/ExpandedIERC20.sol";
 import { CustomIntegrationUmaLongShortPair } from "./CustomIntegrationUmaLongShortPair.sol";
 
-import { IUniswapV2Router } from "../../interfaces/external/uniswap/IUniswapV2Router.sol";
+import { ISwapRouter } from "../../interfaces/external/uniswap-v3/ISwapRouter.sol";
 
 /**
  * @title CustomIntegrationSample
@@ -69,13 +69,34 @@ contract CustomIntegrationUmaShort is CustomIntegrationUmaLongShortPair {
 
     // Not trading the short/long token because theres not enough liquidity on mainnet
 
-    // ILongShortPair token = ILongShortPair(_asset);
-    // ExpandedIERC20 longToken = ExpandedIERC20(token.longToken());
-    // uint256 myBalance = shortToken.balanceOf(_strategy);
-    // address collateralToken = address(token.collateralToken());
+    ILongShortPair token = ILongShortPair(_asset);
+    ExpandedIERC20 longToken = ExpandedIERC20(token.longToken());
+    uint256 myBalance = longToken.balanceOf(_strategy);
+    address collateralToken = address(token.collateralToken());
 
-    // return _getTradeCallData(_strategy, address(longToken), collateralToken, myBalance, 0);
+    bytes memory selector = abi.encodeWithSelector(
+      ISwapRouter.exactInputSingle.selector,
+      address(longToken),
+      address(collateralToken),
+      500,
+      address(this),
+      block.timestamp + 10,
+      myBalance,
+      0,
+      0
+    );
 
-    return (address(0), 0, bytes(""));
+    return (0xE592427A0AEce92De3Edee1F18E0157C05861564, 0, selector);
+    // return (address(0), 0, bytes(""));
+  }
+
+  function _postActionNeedsApproval(
+    address _asset,
+    uint8 /* _customOp */
+  ) internal view override returns (address, address) {
+    ILongShortPair token = ILongShortPair(_asset);
+    ExpandedIERC20 longToken = ExpandedIERC20(token.longToken());
+
+    return (address(longToken), 0xE592427A0AEce92De3Edee1F18E0157C05861564);
   }
 }

@@ -8,7 +8,10 @@ const { eth } = require('./helpers/helpers');
 const { deployments } = require('hardhat');
 const { assert } = require('console');
 const { uniswap } = require('./helpers/addresses');
+const { calculateSqrtPriceX96 } = require('./utils/token-util')
 const { deploy } = deployments;
+
+const { encodeSqrtRatioX96, TickMath } = require('@uniswap/v3-sdk');
 // const { takeSnapshot, restoreSnapshot } = require('lib/rpc');
 
 const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
@@ -82,6 +85,121 @@ describe.only('UMA LongShort pair Integration', function () {
         longToken = await ethers.getContractAt("@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20", longTokenAddress);
         shortTokenAddress = await longShortPairETHSEP.shortToken();
         shortToken = await ethers.getContractAt("@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20", shortTokenAddress);
+        const usdcholder = await impersonateAddress("0x47ac0fb4f2d84898e4d9e7b4dab3c24507a6d503");
+
+        // Creating a pool for ETHDOMSEP/USDC in uniswap 
+        const USDC = await ethers.getContractAt("@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
+
+        const uniswapFactory = await ethers.getContractAt("@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol:IUniswapV3Factory", "0x1F98431c8aD98523631AE4a59f267346ea31F984");
+        await uniswapFactory.createPool(USDC.address, longToken.address, 500);
+
+        const poolLongTokenAddress = await uniswapFactory.getPool(USDC.address, longToken.address, 500);
+
+        console.log("Created pool for longToken/USDC at: ", poolLongTokenAddress);
+
+
+        const poolETHDOMUSDC = await ethers.getContractAt("IUniswapV3Pool", poolLongTokenAddress);
+        // Initialize pool 
+        await USDC.connect(usdcholder).approve(poolLongTokenAddress, eth(400000000000000000));
+        await longToken.connect(usdcholder).approve(poolLongTokenAddress, eth(400000000000000000));
+
+
+
+        await poolETHDOMUSDC.connect(usdcholder).initialize(calculateSqrtPriceX96(1, 18, 18).toFixed(0));
+
+        console.log("pool initialized");
+
+        //Adding liquidity to pool ETHDOMSEP/USDC LongToken
+
+        await USDC.connect(usdcholder).approve(longShortPairETHSEP.address, eth(400000000000000000));
+        await longShortPairETHSEP.connect(usdcholder).create(40000000);
+
+
+        //Adding liquidity to pool ETHDOMSEP/USDC
+
+        let slot0 = await poolETHDOMUSDC.slot0();
+
+        let tickSpacing = parseInt(await poolETHDOMUSDC.tickSpacing());
+
+        // Get correct token order for deployed contract pair
+        let token0 = await poolETHDOMUSDC.token0();
+        let token1 = await poolETHDOMUSDC.token1();
+
+        const blockNumber = await ethers.provider.getBlockNumber();
+
+        const blockBefore = await ethers.provider.getBlock(blockNumber);
+        let mintParams = {
+            token0: token0,
+            token1: token1,
+            fee: 500,
+            tickLower: parseInt(slot0.tick) - tickSpacing * 10,
+            tickUpper: parseInt(slot0.tick) + tickSpacing * 10,
+            amount0Desired: 20000000,
+            amount1Desired: 30000000,
+            amount0Min: 0,
+            amount1Min: 0,
+            recipient: usdcholder.address,
+            deadline: blockBefore.timestamp + 10
+        }
+
+        await USDC.connect(usdcholder).approve("0xC36442b4a4522E871399CD717aBDD847Ab11FE88", eth(400000000000000000));
+        await longToken.connect(usdcholder).approve("0xC36442b4a4522E871399CD717aBDD847Ab11FE88", eth(400000000000000000));
+
+
+        const uniswapV3NPositionManager = await ethers.getContractAt("INonfungiblePositionManager", "0xC36442b4a4522E871399CD717aBDD847Ab11FE88");
+        await uniswapV3NPositionManager.connect(usdcholder).mint(mintParams);
+
+        console.log("Liquidity added for longtoken/USC")
+
+
+        //Create pool for short Token / usdc
+
+        await uniswapFactory.createPool(USDC.address, shortToken.address, 500);
+        const poolShortTokenAddress = await uniswapFactory.getPool(USDC.address, shortToken.address, 500);
+        const poolinvETHDOMUSDC = await ethers.getContractAt("IUniswapV3Pool", poolShortTokenAddress);
+
+        console.log("Created pool for shortToken/USDC at: ", poolShortTokenAddress);
+        // Initialize pool 
+
+        await poolinvETHDOMUSDC.connect(usdcholder).initialize(calculateSqrtPriceX96(1, 18, 18).toFixed(0));
+        console.log("pool initialized");
+
+        await USDC.connect(usdcholder).approve(poolShortTokenAddress, eth(400000000000000000));
+        await shortToken.connect(usdcholder).approve(poolShortTokenAddress, eth(400000000000000000));
+
+
+        //Adding liquidity to pool ETHDOMSEP/USDC
+        slot0 = await poolinvETHDOMUSDC.slot0();
+
+        tickSpacing = parseInt(await poolinvETHDOMUSDC.tickSpacing());
+
+        // Get correct token order for deployed contract pair
+        token0 = await poolinvETHDOMUSDC.token0();
+        token1 = await poolinvETHDOMUSDC.token1();
+
+        mintParams = {
+            token0: token0,
+            token1: token1,
+            fee: 500,
+            tickLower: parseInt(slot0.tick) - tickSpacing * 10,
+            tickUpper: parseInt(slot0.tick) + tickSpacing * 10,
+            amount0Desired: 20000000,
+            amount1Desired: 30000000,
+            amount0Min: 0,
+            amount1Min: 0,
+            recipient: usdcholder.address,
+            deadline: blockBefore.timestamp + 10
+        }
+
+
+        await USDC.connect(usdcholder).approve("0xC36442b4a4522E871399CD717aBDD847Ab11FE88", eth(400000000000000000));
+        await shortToken.connect(usdcholder).approve("0xC36442b4a4522E871399CD717aBDD847Ab11FE88", eth(400000000000000000));
+
+
+        await uniswapV3NPositionManager.connect(usdcholder).mint(mintParams);
+
+        console.log("Liquidity added for  short token/USC")
+
 
     });
 
@@ -151,17 +269,19 @@ describe.only('UMA LongShort pair Integration', function () {
 
 
         const amountOfLSTokens = totalUSDC / ethers.utils.formatEther(collateralPerPair);
-        const balanceShortToken = await longToken.balanceOf(customStrategy.address);
+        const balanceLongToken = await longToken.balanceOf(customStrategy.address);
+        const balanceShortToken = await shortToken.balanceOf(customStrategy.address);
 
         // uma tokens only have 6 decimals 
+        const parsedbalanceLongToken = parseInt(balanceLongToken['_hex'], 16) / 1000000;
         const parsedbalanceShortToken = parseInt(balanceShortToken['_hex'], 16) / 1000000;
 
         // delta of 0.1 for eth price change
-        expect(parsedbalanceShortToken).closeTo(amountOfLSTokens, 0.1)
+        expect(parsedbalanceLongToken).closeTo(amountOfLSTokens, 0.1)
 
-        // short token will be 0
+        // short token will be less than long token
 
-        // expect(await shortToken.balanceOf(customStrategy.address)).to.be.equal(0);
+        expect(parsedbalanceShortToken).to.be.below(parsedbalanceLongToken);
     });
 
     it('Can not finalize the strategy until the token is expired long side', async () => {
@@ -234,15 +354,18 @@ describe.only('UMA LongShort pair Integration', function () {
 
         const amountOfLSTokens = totalUSDC / ethers.utils.formatEther(collateralPerPair);
         const balanceShortToken = await shortToken.balanceOf(customStrategy.address);
+        const balanceLongToken = await longToken.balanceOf(customStrategy.address);
 
         // uma tokens only have 6 decimals 
         const parsedBalanceShortToken = parseInt(balanceShortToken['_hex'], 16) / 1000000;
+        const parsedBalanceLongToken = parseInt(balanceLongToken['_hex'], 16) / 1000000;
 
         // delta of 0.1 for eth price change
         expect(parsedBalanceShortToken).closeTo(amountOfLSTokens, 0.1)
 
-        // long token will be 0 
-        // expect(await longToken.balanceOf(customStrategy.address)).to.be.equal(0);
+        // long token will be less than short token
+
+        expect(parsedBalanceLongToken).to.be.below(parsedBalanceShortToken);
 
     });
 

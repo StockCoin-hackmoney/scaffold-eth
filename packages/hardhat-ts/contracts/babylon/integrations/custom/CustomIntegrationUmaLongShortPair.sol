@@ -216,7 +216,7 @@ abstract contract CustomIntegrationUmaLongShortPair is CustomIntegration {
   function getOutputTokensAndMinAmountOut(
     bytes calldata _data,
     uint256 /* _liquidity */
-  ) external view override returns (address[] memory exitTokens, uint256[] memory _minAmountsOut) {
+  ) external view override returns (address[] memory, uint256[] memory) {
     address umaToken = address(BytesLib.decodeOpDataAddressAssembly(_data, 12));
     ILongShortPair token = ILongShortPair(umaToken);
     address[] memory exitTokens = new address[](1);
@@ -240,104 +240,5 @@ abstract contract CustomIntegrationUmaLongShortPair is CustomIntegration {
   ) external pure override returns (uint256) {
     /** FILL THIS */
     return 0;
-  }
-
-  /**
-   * (OPTIONAL). Return pre action calldata
-   *
-   * hparam _strategy                  Address of the strategy
-   * hparam  _asset                    Address param
-   * hparam  _amount                   Amount
-   * hparam  _customOp                 Type of Custom op
-   *
-   * @return address                   Target contract address
-   * @return uint256                   Call value
-   * @return bytes                     Trade calldata
-   */
-  function _getPreActionCallData(
-    address, /* _strategy */
-    address, /* _asset */
-    uint256, /* _amount */
-    uint256 /* _customOp */
-  )
-    internal
-    view
-    override
-    returns (
-      address,
-      uint256,
-      bytes memory
-    )
-  {
-    return (address(0), 0, bytes(""));
-  }
-
-  /**
-   * (OPTIONAL) Return post action calldata
-   *
-   * hparam  _strategy                 Address of the strategy
-   * hparam  _asset                    Address param
-   * hparam  _amount                   Amount
-   * hparam  _customOp                 Type of op
-   *
-   * @return address                   Target contract address
-   * @return uint256                   Call value
-   * @return bytes                     Trade calldata
-   */
-  function _getPostActionCallData(
-    address _strategy,
-    address _asset,
-    uint256, /* _amount */
-    uint256 _customOp
-  )
-    internal
-    view
-    virtual
-    override
-    returns (
-      address,
-      uint256,
-      bytes memory
-    )
-  {
-    // only execute the action after entering the strategy
-
-    return (address(0), 0, bytes(""));
-  }
-
-  /**
-   * (OPTIONAL). Whether or not the pre action needs an approval.
-   * Only makes sense if _getPreActionCallData is filled.
-   *
-   * hparam  _asset                     Asset passed as param
-   * hparam  _tokenDenominator          0 for enter, 1 for exit
-   * @return address                    Address of the asset to approve
-   * @return address                    Address to approve
-   */
-  function _preActionNeedsApproval(
-    address, /* _asset */
-    uint8 /* _customOp */
-  ) internal view override returns (address, address) {
-    return (address(0), address(0));
-  }
-
-  /**
-   * (OPTIONAL). Whether or not the post action needs an approval
-   * Only makes sense if _getPostActionCallData is filled.
-   *
-   * hparam  _asset                     Asset passed as param
-   * hparam  _tokenDenominator          0 for enter, 1 for exit
-   * @return address                    Address of the asset to approve
-   * @return address                    Address to approve
-   */
-  function _postActionNeedsApproval(
-    address _asset,
-    uint8 /* _customOp */
-  ) internal view override returns (address, address) {
-    ILongShortPair token = ILongShortPair(_asset);
-    ExpandedIERC20 shortToken = ExpandedIERC20(token.shortToken());
-
-    address uniswapShortTokenAddress = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-    return (address(shortToken), 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
   }
 }
